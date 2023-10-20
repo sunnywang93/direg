@@ -1,3 +1,18 @@
+#' Simulate 1D fractional brownian motion
+#'
+#' Performs simulation of one-dimensional fractional
+#' brownian motion on an equally spaced grid using fast-fourier transforms.
+#'
+#' @param H Numeric, the Hurst index of the fractional
+#' brownian motion.
+#' @param n Numeric, the number of evaluation points.
+#' @param grid_max Numeric, the right-end point of the sampling interval.
+#' The observed points are simulated on the interval `[0, grid_max]`, using
+#' the self-similar property of fbms.
+#' @return Vector, the observed points of the fbm.
+#' @export
+
+
 fbm_fft <- function(H, n, grid_max) {
 
   g <- ceiling(log(2*(n - 1)) / log(2))
@@ -46,7 +61,9 @@ fbm_fft <- function(H, n, grid_max) {
 #' Simulates fractional brownian sheet
 #'
 #' Simulates a fractional brownian sheet on the two-dimensional canonical basis
-#' based on the product of two fractional brownian motions on another basis
+#' based on the product of two fractional brownian motions (fbms) on another basis.
+#' The individual fbms are simulated using fast fourier transforms for increased
+#' speed; see `fbm_fft`.
 #'
 
 #' @param t1_n Numeric, containing the number of evaluation points for the
@@ -61,6 +78,9 @@ fbm_fft <- function(H, n, grid_max) {
 #' brownian motion.
 #' @param H2 Numeric, indicating the Hölder exponent of the second fractional
 #' brownian motion.
+#' @returns Matrix, containing the fractional brownian sheets
+#' observed on the canonical bases.
+#' @export
 fbm_sheet <- function(t1_n, t2_n, e1_n, e2_n, H1, H2) {
 
   # Specific coordinates of canonical bases
@@ -115,18 +135,10 @@ fbm_sheet <- function(t1_n, t2_n, e1_n, e2_n, H1, H2) {
   matrix(X,
          nrow = length(t1_tilde),
          ncol = length(t2_tilde))
-  # Rotate the matrix to obtain the appropriate positions
-  # for images
-  # Y_mat <- matrix(nrow = length(t1_tilde),
-  #                 ncol = length(t2_tilde))
-  #
-  # for(i in 1:ncol(X_mat)) {
-  #   Y_mat[i, ] <- X_mat[nrow(X_mat) - i + 1,]
-  # }
-  #
-  # Y_mat
+
 
 }
+
 
 
 fbm_prod <- function(H1, H2, n, endpoint) {
@@ -138,35 +150,7 @@ fbm_prod <- function(H1, H2, n, endpoint) {
     matrix(nrow = n,
            ncol = n)
 
-  #X <- apply(X_rev, 2, function(x) rev(x))
 }
-
-
-
-
-# fbm_irreg <- function(x, thres, H) {
-#
-#   # Find the vector of break points for equally spaced subintervals
-#   idx <- c(1, which((diff(diff(x)) > thres) == 1), length(x))
-#
-#   # Identify each element of vector with the subinterval they belong
-#   x_idx <-  findInterval(seq_along(x),
-#                          idx,
-#                          rightmost.closed = TRUE,
-#                          left.open = TRUE)
-#
-#   # Split the vector according to sub-intervals
-#   x_sub <- split(x, x_idx)
-#
-#   # Simulate fbm for each equally spaced sub-intervals
-#   lapply(x_sub, function(x) fbm_fft(H = H,
-#                                     n = length(x),
-#                                     grid_max = max(x)))
-#
-#
-#
-# }
-
 
 
 

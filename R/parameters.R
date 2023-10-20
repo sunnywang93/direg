@@ -8,6 +8,7 @@
 #' @param tout Data frame of points on which the thetas should be computed,
 #' resulting from `expand.grid`.
 #' @param delta Numeric, determining the spacings.
+#' @export
 
 theta_sheets <- function(X_list, tout, delta, e) {
 
@@ -61,6 +62,7 @@ theta_sheets <- function(X_list, tout, delta, e) {
 #' delta.
 #' - **theta_e1** Matrix, containing the thetas on the `e1` basis computed with
 #' delta.
+#' @export
 
 H_sheets <- function(X_list, tout, delta) {
 

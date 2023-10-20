@@ -8,6 +8,7 @@
 #' @param xout Vector, containing the evaluation points at which
 #' the angle should be computed.
 #' @param delta Numeric, determining the spacings.
+#' @export
 
 estimate_angle <- function(X_list, xout, delta) {
 
