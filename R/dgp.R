@@ -105,13 +105,15 @@ fbm_sheet <- function(t1_n, t2_n, e1_n, e2_n, H1, H2) {
 
   # Obtain the indexes of the corresponding value of the fractional
   # brownian motion on the negative domain
-  t2_idx_minus <- sapply((sqrt(2)/2) - t2[t2 < 0], function(x) which.min(abs(x - t1)))
+  t2_idx_minus <- sapply((sqrt(2)/2) - t2[t2 < 0],
+                         function(x) which.min(abs(x - t1)))
 
   # Extract the values of the fbm on the negative part of the domain by
   # the self-similarity property
-  B2_minus <- -B2_tilde[t2_idx_minus] + B2_tilde[which.min(abs((sqrt(2)/2) - t1))]
+  B2_minus <- -B2_tilde[t2_idx_minus] +
+    B2_tilde[which.min(abs((sqrt(2)/2) - t1))]
   # Extract the values of the positive part
-  B2_plus <- B2_tilde[seq_len(floor(length(t1)/2))]
+  B2_plus <- B2_tilde[seq_len(length(t1) - length(B2_minus))]
   # Combine them to get the full process
   B2 <- c(B2_minus, B2_plus)
 
