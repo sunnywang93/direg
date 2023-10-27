@@ -81,37 +81,37 @@ fbm_fft <- function(H, n, grid_max) {
 #' @returns Matrix, containing the fractional brownian sheets
 #' observed on the canonical bases.
 #' @export
-fbm_sheet <- function(t1_n, t2_n, e1_n, e2_n, H1, H2) {
+fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
 
   # Specific coordinates of canonical bases
   e1 <- c(1, 0)
   e2 <- c(0, 1)
 
   # Specify coordinates of other bases
-  u1 <- c(sqrt(2)/2, sqrt(2)/2)
-  u2 <- c(sqrt(2)/2, -sqrt(2)/2)
+  u1 <- c(cos(alpha), sin(alpha))
+  u2 <- c(-sin(alpha), cos(alpha))
 
   # Construct the evaluation points along the canonical bases
-  t1_tilde <- seq(0, 1, length.out = e1_n)
-  t2_tilde <- seq(0, 1, length.out = e2_n)
+  t1_tilde <- seq(0, 1, length.out = e_n)
+  t2_tilde <- seq(0, 1, length.out = e_n)
 
   # Construct the evaluation points along the other bases
-  t1 <- seq(0, sqrt(2), length.out = t1_n)
-  t2 <- seq(-sqrt(2)/2, sqrt(2)/2, length.out = t2_n)
+  t1 <- seq(0 , cos(alpha) + sin(alpha), length.out = t_n)
+  t2 <- seq(-sin(alpha), cos(alpha), length.out = t_n)
 
   # Simulate the 1D fractional brownian motions
-  B1 <- fbm_fft(H = H1, n = length(t1), grid_max = max(t1))
-  B2_tilde <- fbm_fft(H = H2, n = length(t1), grid_max = max(t1))
+  B1 <- fbm_fft(H = H1, n = length(t1), grid_max = cos(alpha) + sin(alpha))
+  B2_tilde <- fbm_fft(H = H2, n = length(t1), grid_max = cos(alpha) + sin(alpha))
 
   # Obtain the indexes of the corresponding value of the fractional
   # brownian motion on the negative domain
-  t2_idx_minus <- sapply((sqrt(2)/2) - t2[t2 < 0],
+  t2_idx_minus <- sapply(cos(alpha) - t2[t2 < 0],
                          function(x) which.min(abs(x - t1)))
 
   # Extract the values of the fbm on the negative part of the domain by
   # the self-similarity property
   B2_minus <- -B2_tilde[t2_idx_minus] +
-    B2_tilde[which.min(abs((sqrt(2)/2) - t1))]
+    B2_tilde[which.min(abs( cos(alpha) - t1 ))]
   # Extract the values of the positive part
   B2_plus <- B2_tilde[seq_len(length(t1) - length(B2_minus))]
   # Combine them to get the full process
@@ -120,11 +120,15 @@ fbm_sheet <- function(t1_n, t2_n, e1_n, e2_n, H1, H2) {
   # Find the coordinates of the evaluation points defined on the
   # canonical basis with respect to the other basis
   t1_u1 <- apply(
-    expand.grid(t2_tilde = t2_tilde, t1_tilde = t1_tilde), 1, sum
-  ) / sqrt(2)
+    expand.grid(t2_tilde = t2_tilde, t1_tilde = t1_tilde),
+    1,
+    function(x) crossprod(x, c(cos(alpha), sin(alpha)))
+  )
 
-  t2_u2 <- apply(expand.grid(t2_tilde = t2_tilde, t1_tilde = t1_tilde), 1,
-                 function(x) x[1] - x[2] / sqrt(2))
+  t2_u2 <- apply(expand.grid(t2_tilde = t2_tilde, t1_tilde = t1_tilde),
+                 1,
+                 function(x) crossprod(x, c(-sin(alpha), cos(alpha)))
+                 )
 
   # Obtain the indexes of the new coordinates
   t1_u1_idx <- sapply(t1_u1, function(x) which.min(abs(x - t1)))

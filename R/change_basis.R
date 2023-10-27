@@ -2,8 +2,8 @@
 #' Estimates the angle between two basis vectors
 #'
 #' @param X_list List, containing the following elements:
-#' -**$t** Vector of sampling points,
-#' -**X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' - **$t** Vector of sampling points,
+#' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
 #' cartesian product of `$t` with itself.
 #' @param xout Vector, containing the evaluation points at which
 #' the angle should be computed.
