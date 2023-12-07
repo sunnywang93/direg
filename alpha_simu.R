@@ -4,14 +4,15 @@ library(parallel)
 library(tictoc)
 library(snow)
 library(ggplot2)
+library(here)
 
 # Parameter settings
-N <- 200
+N <- 100
 M <- 51
 H1 <- 0.8
 H2 <- 0.5
 delta <- 0.2
-rout <- 500
+rout <- 20
 
 xtrue <- seq(0, 1, length.out = M)
 xparam <- seq(0, 1, length.out = 21)
@@ -64,29 +65,51 @@ foreach(i = 1:rout,
                          ~fbm_sheet(
                            t_n = M,
                            e_n = M,
-                           alpha = pi / 4,
+                           alpha_fun = function(x) pi / 6,
                            H1 = H1,
                            H2 = H2)
     )
 
-
+    # X_can_list <- purrr::map(seq_len(N),
+    #                          ~fbm_prod(H1 = H1,
+    #                                    H2 = H2,
+    #                                    n = M,
+    #                                    endpoint = 1)
+    # )
+    #
+    # sheets_can_list <- purrr::map(X_can_list,
+    #                           ~list(t = xtrue,
+    #                                 X = .x))
 
     sheets_list <- purrr::map(X_list,
                               ~list(t = xtrue,
                                     X = .x))
 
-    # Estimate angle between basis vectors
-    alpha <- estimate_angle(X_list = sheets_list,
-                            xout = xparam,
-                            delta = delta)
+    alpha_sheet <- estimate_angle(X_list = sheets_list,
+                                  xout = xparam,
+                                  delta = 0.2)
 
-    # Average alpha over the grid of points using trapezoidal
-    # rule
-    alpha_mu <- apply(alpha,
-                      2,
-                      function(x) pracma::trapz(x = xparam,
-                                                y = x)) |>
-      (\(x) pracma::trapz(x = xparam,y = x))()
+    v1 <- c(cos(mean(alpha_sheet$alpha_cot)), sin(mean(alpha_sheet$alpha_cot)))
+
+    v2 <- c(cos(mean(alpha_sheet$alpha_tan)), sin(mean(alpha_sheet$alpha_tan)))
+
+    H_test1 <- H_sheets(X_list = sheets_list,
+                        tout = tout,
+                        delta = 0.2,
+                        base_list = list(v1, v2))
+
+
+    # Estimate angle between basis vectors
+    # alpha_list <- lapply(seq(0.01, 0.5, l = 20), function(x) {
+    #   estimate_angle(X_list = sheets_list,
+    #                  xout = xparam,
+    #                  delta = x)
+    # })
+
+
+    # alpha_mu <- purrr::map_dbl(alpha_list,
+    #                        ~mean(.x, na.rm = TRUE)
+    #                        )
 
     save(alpha_mu,
          file = each_filepath)

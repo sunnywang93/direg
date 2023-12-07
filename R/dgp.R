@@ -57,8 +57,7 @@ fbm_fft <- function(H, n, grid_max) {
 
 }
 
-
-#' Simulates fractional brownian sheet
+#' Simulates fractional brownian sheet with constant anisotropy
 #'
 #' Simulates a fractional brownian sheet on the two-dimensional canonical basis
 #' based on the product of two fractional brownian motions (fbms) on another basis.
@@ -66,17 +65,15 @@ fbm_fft <- function(H, n, grid_max) {
 #' speed; see `fbm_fft`.
 #'
 
-#' @param t1_n Numeric, containing the number of evaluation points for the
-#' output along the direction of `u1`.
-#' @param t2_n Numeric, containing the number of evaluation points for the
-#' output along the direction of `u2`.
-#' @param e1_n Numeric, containing the number of evaluation points along
-#' the direction of the first canonical basis.
-#' @param e2_n Numeric, containing the number of evaluation points along
-#' the direction of the second canonical basis.
-#' @param H1 Numeric, indicating the Hölder exponent of the first fractional
+#' @param t_n Numeric, the number of evaluation points for the
+#' output along the direction of the non-canonical bases.
+#' @param e_n Numeric, the number of evaluation points along
+#' the direction of the canonical bases
+#' @param alpha Numeric, the angle between the first non-canonical and canonical
+#' basis. Must be a number between `[0, pi/2]`.
+#' @param H1 Numeric, the Hölder exponent of the first fractional
 #' brownian motion.
-#' @param H2 Numeric, indicating the Hölder exponent of the second fractional
+#' @param H2 Numeric, the Hölder exponent of the second fractional
 #' brownian motion.
 #' @returns Matrix, containing the fractional brownian sheets
 #' observed on the canonical bases.
@@ -128,7 +125,7 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
   t2_u2 <- apply(expand.grid(t2_tilde = t2_tilde, t1_tilde = t1_tilde),
                  1,
                  function(x) crossprod(x, c(-sin(alpha), cos(alpha)))
-                 )
+  )
 
   # Obtain the indexes of the new coordinates
   t1_u1_idx <- sapply(t1_u1, function(x) which.min(abs(x - t1)))
@@ -147,12 +144,115 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
 
 
 
-fbm_prod <- function(H1, H2, n, endpoint) {
+
+#' Simulates fractional brownian sheet with time-varying anisotropy
+#'
+#' Simulates a fractional brownian sheet on the two-dimensional canonical basis
+#' based on the sum of two fractional brownian motions (fbms) on another basis.
+#' The individual fbms are simulated using fast fourier transforms for increased
+#' speed; see `fbm_fft`. This function simulates brownian sheets with time-varying
+#' angles; for a constant angle, please use `fbm_sheet` instead.
+#'
+
+#' @param t_n Numeric, containing the number of evaluation points for the
+#' output along the direction of anisotropic bases.
+#' @param e_n Numeric, containing the number of evaluation points along
+#' the direction of the canonical bases.
+#' @param alpha_fun Function, indicating how to construct the time-varying angles.
+#' @param H1 Numeric, indicating the Hölder exponent of the first fractional
+#' brownian motion.
+#' @param H2 Numeric, indicating the Hölder exponent of the second fractional
+#' brownian motion.
+#' @param b_n Numeric, indicating the number of evaluation points to simulate
+#' the fBms on.
+#' @returns Matrix, containing the fractional brownian sheets
+#' observed on the canonical bases.
+#' @export
+fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000) {
+
+  # Specific coordinates of canonical bases
+  e1 <- c(1, 0)
+  e2 <- c(0, 1)
+
+  # Construct the evaluation points along the canonical bases
+  t1_tilde <- seq(0, 1, length.out = e_n)
+  t2_tilde <- seq(0, 1, length.out = e_n)
+
+  # Construct the 2D grid
+  tt <- expand.grid(t1 = t1_tilde, t2 = t2_tilde)
+
+  # Construct alpha(t)
+  alpha_t <- apply(tt, 1, function(x) alpha_fun(x))
+
+  t1 <- sapply(seq_along(alpha_t),
+               function(idx) (tt$t1[idx] * cos(alpha_t[idx])) +
+                 tt$t2[idx] * sin(alpha_t[idx]))
+
+
+  t2 <- sapply(seq_along(alpha_t),
+               function(idx) (-tt$t1[idx] * sin(alpha_t[idx])) +
+                 tt$t2[idx] * cos(alpha_t[idx]))
+
+  # Simulate the 1D fractional brownian motions
+  B1_tilde <- fbm_fft(H = H1, n = b_n, grid_max = max(t1))
+
+  t1_grid_max <- seq(0, max(t1), length.out = b_n)
+
+  t2_grid_max <- seq(0, max(t2) - min(t2), length.out = b_n)
+
+  B2_tilde <- fbm_fft(H = H2, n = b_n, grid_max = max(t2) - min(t2))
+
+  # Obtain the indexes of the corresponding values of the fractional
+  # brownian motion on the negative domain
+  t2_idx_minus <- sapply(max(t2) - t2[t2 < 0],
+                         function(x) which.min(abs(x - t2_grid_max)))
+
+  # Extract the values of the fbm on the negative part of the domain by
+  # the self-similarity property
+  B2_minus <- -B2_tilde[t2_idx_minus] +
+    B2_tilde[which.min(abs(max(t2) - t2_grid_max))]
+
+  # Extract the values of the positive part
+  t2_idx_plus <- sapply(t2[t2 >= 0],
+                        function(x) which.min(abs(x - t2_grid_max)))
+
+  B2_plus <- B2_tilde[t2_idx_plus]
+  # Combine them to get the full process
+
+  # Find indexes of negative t2s in the original t2 vectors
+  t2_minus_orig_idx <- which(t2 < 0)
+
+  # Find indexes of positive t2s in the original t2 vectors
+  t2_plus_orig_idx <- which(t2 >= 0)
+
+  B2_named <- c(setNames(B2_minus, t2_minus_orig_idx),
+                setNames(B2_plus, t2_plus_orig_idx))
+
+  B2 <- B2_named[order(as.double(names(B2_named)))]
+
+  t1_idx <- sapply(t1,
+                   function(x) which.min(abs(x - t1_grid_max)))
+
+  B1 <- B1_tilde[t1_idx]
+
+  # Extract the relevant values and build the 2D process
+  X <- B1 + B2
+
+  # Convert the sequence into a matrix
+  matrix(unname(X),
+         nrow = length(t1_tilde),
+         ncol = length(t2_tilde))
+
+}
+
+
+
+fbm_sum <- function(H1, H2, n, endpoint) {
 
   fbm_1 <- fbm_fft(H1, n, endpoint)
   fbm_2 <- fbm_fft(H2, n, endpoint)
 
-  apply(expand.grid(fbm_1, fbm_2), 1, function(x) x[1] * x[2]) |>
+  apply(expand.grid(fbm_1, fbm_2), 1, function(x) x[1] + x[2]) |>
     matrix(nrow = n,
            ncol = n)
 

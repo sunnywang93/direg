@@ -49,8 +49,8 @@ theta_sheets <- function(X_list, tout, delta, e) {
 #' Computes the Hölder regularity of bivariate functional data
 #'
 #' @param X_list List, containing the following elements:
-#' -**$t** Vector of sampling points,
-#' -**X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' - **$t** Vector of sampling points,
+#' - **X** Matrix of observed points, measured on the bi-dimensional grid containing
 #' cartesian product of `$t` with itself.
 #' @param tout Matrix / dataframe with 2 dimensions, specifying all the
 #' coordinates in the `x` and `y` axis.
@@ -82,10 +82,11 @@ H_sheets <- function(X_list, tout, delta) {
                                           .x))
 
   H_hat <- purrr::map2(theta_2delta, theta_delta,
-                       ~(log(.x) - log(.y))) |>
-    (\(x) Reduce('+', x) / length(x))()
+                       ~(log(.x) - log(.y)) / (2 * log(2))
+                       ) |>
+    (\(x) Reduce(pmin, x))()
 
-  H_hat[!is.finite(H_hat)] <- 1
+  H_hat$e1[!is.finite(H_hat$e1)] <- 1
 
   list(
     H = pmin(pmax(H_hat, 0.1), 1),
@@ -94,3 +95,44 @@ H_sheets <- function(X_list, tout, delta) {
   )
 
 }
+
+
+#' Compute the Hölder regularity along the direction of input bases
+#'
+#' @param X_list List, containing the following elements:
+#' - **$t** Vector of sampling points,
+#' - **X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' cartesian product of `$t` with itself.
+#' @param tout Matrix / dataframe with 2 dimensions, specifying all the
+#' coordinates in the `x` and `y` axis.
+#' @param delta Numeric, determining the spacings.
+#' @param base_list List, with each element containing the coordinates of
+#' each vector.
+#' @returns List, containing a matrix with the regularity along each direction
+#' of the respective bases functions.
+
+
+H_sheets_dir <- function(X_list, tout, delta, base_list) {
+
+  theta_2delta <- purrr::map(base_list,
+                             ~theta_sheets(X_list = X_list,
+                                           tout = tout,
+                                           delta = delta * 2,
+                                           .x))
+
+  theta_delta <- purrr::map(base_list,
+                            ~theta_sheets(X_list = X_list,
+                                          tout = tout,
+                                          delta = delta,
+                                          .x))
+
+  H_hat <- purrr::map2(theta_2delta, theta_delta,
+                       ~(log(.x) - log(.y)) / (2 * log(2))
+  ) |>
+    purrr::map(~apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)))
+
+  H_hat
+
+}
+
+

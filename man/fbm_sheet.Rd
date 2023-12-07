@@ -2,28 +2,25 @@
 % Please edit documentation in R/dgp.R
 \name{fbm_sheet}
 \alias{fbm_sheet}
-\title{Simulates fractional brownian sheet}
+\title{Simulates fractional brownian sheet with constant anisotropy}
 \usage{
 fbm_sheet(t_n, e_n, alpha, H1, H2)
 }
 \arguments{
-\item{H1}{Numeric, indicating the Hölder exponent of the first fractional
+\item{t_n}{Numeric, the number of evaluation points for the
+output along the direction of the non-canonical bases.}
+
+\item{e_n}{Numeric, the number of evaluation points along
+the direction of the canonical bases}
+
+\item{alpha}{Numeric, the angle between the first non-canonical and canonical
+basis. Must be a number between \verb{[0, pi/2]}.}
+
+\item{H1}{Numeric, the Hölder exponent of the first fractional
 brownian motion.}
 
-\item{H2}{Numeric, indicating the Hölder exponent of the second fractional
+\item{H2}{Numeric, the Hölder exponent of the second fractional
 brownian motion.}
-
-\item{t1_n}{Numeric, containing the number of evaluation points for the
-output along the direction of \code{u1}.}
-
-\item{t2_n}{Numeric, containing the number of evaluation points for the
-output along the direction of \code{u2}.}
-
-\item{e1_n}{Numeric, containing the number of evaluation points along
-the direction of the first canonical basis.}
-
-\item{e2_n}{Numeric, containing the number of evaluation points along
-the direction of the second canonical basis.}
 }
 \value{
 Matrix, containing the fractional brownian sheets
