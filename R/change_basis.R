@@ -1,5 +1,49 @@
+#' Find the unique angle between the two basis vectors that provides the
+#' maximising regularity
+#'
+#' @param angles Vector, containing the arccot and arctan of the angle, for
+#' example outputted by the function `estimate_angle`.
+#' @param dout Vector, containing the grid of spacings (i.e delta) to compute
+#' the regularity. Plurality vote over the grid to find the maximising angles.
+#' @param xout Vector, containing the evaluation points along one 1 dimension
+#' to compute the regularity. The cartesian product is taken to produce the
+#' 2D grid.
+#' @return Numeric, containing the identified angle.
 
-#' Estimates the angle between two basis vectors
+identify_angle <- function(angles, dout, xout) {
+
+  # Construct the two basis vectors
+  v1_cot <- c(cos(angles["alpha_cot"]), sin(angles["alpha_cot"]))
+  v1_tan <- c(cos(angles["alpha_tan"]), sin(angles["alpha_tan"]))
+  # Construct the two reflected basis vectors
+  v1_cot_ref <- c(cos(angles["alpha_cot"] + pi/2),
+                  sin(angles["alpha_cot"] + pi/2))
+  v1_tan_ref <- c(cos(angles["alpha_tan"] + pi/2),
+                  sin(angles["alpha_tan"] + pi/2))
+  # Compute the regularity along each basis vector along a grid of deltas
+  H_v <- purrr::map(dout,
+                    ~H_sheets_dir(X_list = sheets_list,
+                     tout = expand.grid(t1 = xout, t2 = xout),
+                     delta = .x,
+                     base_list = list(v1_cot, v1_cot_ref,
+                                      v1_tan, v1_tan_ref)))
+  # Find the plurality maximising regularity
+  max_idx <- purrr::map_dbl(H_v, ~which.max(.x))
+  u_idx <- unique(max_idx)
+  mode_idx <- u_idx[which.max(tabulate(match(max_idx, u_idx)))]
+
+  # Return the unique angle that maximises the regularity
+  if(mode_idx %in% c(1, 2)) {
+    angles["alpha_cot"]
+  } else {
+    angles["alpha_tan"]
+  }
+
+}
+
+
+
+#' Estimates the angle between two basis vectors up to a reflection
 #'
 #' @param X_list List, containing the following elements:
 #' - **$t** Vector of sampling points,
@@ -8,6 +52,7 @@
 #' @param xout Vector, containing the evaluation points at which
 #' the angle should be computed.
 #' @param delta Numeric, determining the spacings.
+#' @return Vector, containing the angles identified by arccot and arctan.
 #' @export
 
 estimate_angle <- function(X_list, xout, delta) {
@@ -18,11 +63,11 @@ estimate_angle <- function(X_list, xout, delta) {
                      tout = tout,
                      delta = delta)
 
+  tan_alpha <- mean(H_list$theta_e2 / H_list$theta_e1,
+                    na.rm = TRUE)**(1 / (2 * mean(H_list$H, na.rm = TRUE)))
 
-  tan_alpha <- mean(H_list$theta_e2 / H_list$theta_e1)**(1 / (2 * mean(H_list$H)))
-
-  list(alpha_cot = pracma::acot(tan_alpha),
-       alpha_tan = atan(tan_alpha))
+  c(alpha_cot = pracma::acot(tan_alpha),
+    alpha_tan = atan(tan_alpha))
 
 }
 
@@ -50,33 +95,4 @@ alpha_avg <- function(X, npart) {
 
 }
 
-
-
-gaussian_blur <- function(matrix_data, sigma) {
-  # Create a Gaussian kernel
-  kernel_size <- ceiling(6 * sigma)
-  if (kernel_size %% 2 == 0) kernel_size <- kernel_size + 1
-
-  x <- seq(-3 * sigma, 3 * sigma, length.out = kernel_size)
-  kernel <- dnorm(x, mean = 0, sd = sigma)
-  kernel <- outer(kernel, kernel)
-  kernel <- kernel / sum(kernel)
-
-  # Apply the Gaussian kernel using convolution
-  blurred_matrix <- matrix(0, nrow = nrow(matrix_data), ncol = ncol(matrix_data))
-
-  for (i in 1:nrow(matrix_data)) {
-    for (j in 1:ncol(matrix_data)) {
-      min_row <- max(1, i - floor(kernel_size / 2))
-      max_row <- min(nrow(matrix_data), i + floor(kernel_size / 2))
-      min_col <- max(1, j - floor(kernel_size / 2))
-      max_col <- min(ncol(matrix_data), j + floor(kernel_size / 2))
-
-      neighborhood <- matrix_data[min_row:max_row, min_col:max_col]
-      blurred_matrix[i, j] <- sum(neighborhood * kernel[1:(max_row - min_row + 1), 1:(max_col - min_col + 1)])
-    }
-  }
-
-  return(blurred_matrix)
-}
 

@@ -81,32 +81,8 @@ foreach(i = 1:rout,
                      delta = delta)
     })
 
-    alpha_mu_cot <- purrr::map_dbl(alpha_sheet, ~mean(.x$alpha_cot))
-
-    alpha_mu_tan <- purrr::map_dbl(alpha_sheet, ~mean(.x$alpha_tan))
-
-    v1_plus <- purrr::map(alpha_mu_cot,
-                          ~c(cos(.x), sin(.x)))
-
-    v2_plus <- purrr::map(alpha_mu_tan,
-                          ~c(cos(.x), sin(.x)))
-
-    v1 <- purrr::map(alpha_mu_cot,
-                     ~c(cos(.x + pi/2), sin(.x + pi/2)))
-
-    v2 <- purrr::map(alpha_mu_tan,
-                     ~c(cos(.x + pi/2), sin(.x + pi/2)))
-
-    H_max <- lapply(seq_along(delta_grid), function(id) {
-      H_sheets_dir(X_list = sheets_list,
-                   tout = expand.grid(t1 = xparam, t2 = xparam),
-                   delta = delta_grid[[id]],
-                   base_list = list(v1[[id]], v2[[id]]))
-    })
-
-    H_max_count <- sapply(H_max, function(H_grid) {
-      which.max(purrr::map_dbl(H_grid, ~mean(.x, na.rm = TRUE))) == 2
-    }) |> sum()
+    alpha_unique <- estimate_angle(X_list = sheets_list,
+                                   xout = xparam)
 
 
     save(alpha_mu,

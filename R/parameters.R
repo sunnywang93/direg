@@ -8,6 +8,7 @@
 #' @param tout Data frame of points on which the thetas should be computed,
 #' resulting from `expand.grid`.
 #' @param delta Numeric, determining the spacings.
+#' @param e List, containing the coordinates of the basis vectors.
 #' @export
 
 theta_sheets <- function(X_list, tout, delta, e) {
@@ -124,10 +125,13 @@ H_sheets_dir <- function(X_list, tout, delta, base_list) {
                                           delta = delta,
                                           .x))
 
-  H_hat <- purrr::map2(theta_2delta, theta_delta,
+  purrr::map2(theta_2delta, theta_delta,
                        ~(log(.x) - log(.y)) / (2 * log(2))
-  ) |>
-    purrr::map(~apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)))
+              ) |>
+    purrr::map_dbl(~mean(apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)
+                               )
+                         ,na.rm = TRUE)
+                   )
 
 }
 
