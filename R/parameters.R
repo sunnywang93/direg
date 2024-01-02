@@ -86,8 +86,6 @@ H_sheets <- function(X_list, tout, delta) {
                        ) |>
     (\(x) Reduce(pmin, x))()
 
-  H_hat$e1[!is.finite(H_hat$e1)] <- 1
-
   list(
     H = pmin(pmax(H_hat, 0.1), 1),
     theta_e2 = theta_delta$e2,
@@ -130,8 +128,6 @@ H_sheets_dir <- function(X_list, tout, delta, base_list) {
                        ~(log(.x) - log(.y)) / (2 * log(2))
   ) |>
     purrr::map(~apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)))
-
-  H_hat
 
 }
 

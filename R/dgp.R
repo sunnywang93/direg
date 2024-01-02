@@ -75,10 +75,12 @@ fbm_fft <- function(H, n, grid_max) {
 #' brownian motion.
 #' @param H2 Numeric, the Hölder exponent of the second fractional
 #' brownian motion.
+#' @param type String, either "sum" or "prod", indicating whether to simulate
+#' from the sum or products of two fBms.
 #' @returns Matrix, containing the fractional brownian sheets
 #' observed on the canonical bases.
 #' @export
-fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
+fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum") {
 
   # Specific coordinates of canonical bases
   e1 <- c(1, 0)
@@ -132,13 +134,17 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
   t2_u2_idx <- sapply(t2_u2, function(x) which.min(abs(x - t2)))
 
   # Extract the relevant values and build the 2D process
-  X <- B1[t1_u1_idx] * B2[t2_u2_idx]
+  if(type == "sum") {
+    X <- B1[t1_u1_idx] + B2[t2_u2_idx]
+  } else {
+    X <- B1[t1_u1_idx] * B2[t2_u2_idx]
+  }
+
 
   # Convert the sequence into a matrix
   matrix(X,
          nrow = length(t1_tilde),
          ncol = length(t2_tilde))
-
 
 }
 
@@ -165,10 +171,13 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2) {
 #' brownian motion.
 #' @param b_n Numeric, indicating the number of evaluation points to simulate
 #' the fBms on.
+#' @param type String, either "sum" or "prod", indicating whether to simulate
+#' from the sum or products of two fBms.
 #' @returns Matrix, containing the fractional brownian sheets
 #' observed on the canonical bases.
 #' @export
-fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000) {
+fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000,
+                          type = "sum") {
 
   # Specific coordinates of canonical bases
   e1 <- c(1, 0)
@@ -182,7 +191,12 @@ fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000) {
   tt <- expand.grid(t1 = t1_tilde, t2 = t2_tilde)
 
   # Construct alpha(t)
-  alpha_t <- apply(tt, 1, function(x) alpha_fun(x))
+  #alpha_t <- alpha_fun(tt$t1, tt$t2)
+  if(length(formals(alpha_fun)) == 2) {
+    alpha_t <- mapply(alpha_fun, tt$t1, tt$t2)
+  } else {
+    alpha_t <- apply(tt, 1, alpha_fun)
+  }
 
   t1 <- sapply(seq_along(alpha_t),
                function(idx) (tt$t1[idx] * cos(alpha_t[idx])) +
@@ -236,7 +250,11 @@ fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000) {
   B1 <- B1_tilde[t1_idx]
 
   # Extract the relevant values and build the 2D process
-  X <- B1 + B2
+  if(type == "sum") {
+    X <- B1 + B2
+  } else {
+    X <- B1 * B2
+  }
 
   # Convert the sequence into a matrix
   matrix(unname(X),
@@ -246,6 +264,7 @@ fbm_sheet_var <- function(t_n, e_n, alpha_fun, H1, H2, b_n = 10000) {
 }
 
 
+#' Simulate isotropic process based on fractional brownian motions
 
 fbm_sum <- function(H1, H2, n, endpoint) {
 

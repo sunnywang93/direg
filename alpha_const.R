@@ -8,15 +8,13 @@ library(here)
 
 # Parameter settings
 N <- 100
-M <- 51
+M <- 101
 H1 <- 0.8
 H2 <- 0.5
-delta <- 0.2
+delta_grid <- seq(0.05, 0.4, length.out = 21)
 rout <- 20
-
 xtrue <- seq(0, 1, length.out = M)
 xparam <- seq(0, 1, length.out = 21)
-
 
 # Set seeds to ensure reproducibility
 set.seed(123)
@@ -65,51 +63,51 @@ foreach(i = 1:rout,
                          ~fbm_sheet(
                            t_n = M,
                            e_n = M,
-                           alpha_fun = function(x) pi / 6,
-                           H1 = H1,
-                           H2 = H2)
+                           alpha = pi / 6,
+                           H1 = .5,
+                           H2 = .8)
     )
 
-    # X_can_list <- purrr::map(seq_len(N),
-    #                          ~fbm_prod(H1 = H1,
-    #                                    H2 = H2,
-    #                                    n = M,
-    #                                    endpoint = 1)
-    # )
-    #
-    # sheets_can_list <- purrr::map(X_can_list,
-    #                           ~list(t = xtrue,
-    #                                 X = .x))
+    # Check the variance of the simulated process
+    #image(Reduce('+', purrr::map(X_list, ~.x^2)) / length(X_list))
 
     sheets_list <- purrr::map(X_list,
-                              ~list(t = xtrue,
+                              ~list(t = seq(0, 1, length.out = M),
                                     X = .x))
 
-    alpha_sheet <- estimate_angle(X_list = sheets_list,
-                                  xout = xparam,
-                                  delta = 0.2)
+    alpha_sheet <- lapply(delta_grid, function(delta) {
+      estimate_angle(X_list = sheets_list,
+                     xout = xparam,
+                     delta = delta)
+    })
 
-    v1 <- c(cos(mean(alpha_sheet$alpha_cot)), sin(mean(alpha_sheet$alpha_cot)))
+    alpha_mu_cot <- purrr::map_dbl(alpha_sheet, ~mean(.x$alpha_cot))
 
-    v2 <- c(cos(mean(alpha_sheet$alpha_tan)), sin(mean(alpha_sheet$alpha_tan)))
+    alpha_mu_tan <- purrr::map_dbl(alpha_sheet, ~mean(.x$alpha_tan))
 
-    H_test1 <- H_sheets(X_list = sheets_list,
-                        tout = tout,
-                        delta = 0.2,
-                        base_list = list(v1, v2))
+    v1_plus <- purrr::map(alpha_mu_cot,
+                          ~c(cos(.x), sin(.x)))
 
+    v2_plus <- purrr::map(alpha_mu_tan,
+                          ~c(cos(.x), sin(.x)))
 
-    # Estimate angle between basis vectors
-    # alpha_list <- lapply(seq(0.01, 0.5, l = 20), function(x) {
-    #   estimate_angle(X_list = sheets_list,
-    #                  xout = xparam,
-    #                  delta = x)
-    # })
+    v1 <- purrr::map(alpha_mu_cot,
+                     ~c(cos(.x + pi/2), sin(.x + pi/2)))
 
+    v2 <- purrr::map(alpha_mu_tan,
+                     ~c(cos(.x + pi/2), sin(.x + pi/2)))
 
-    # alpha_mu <- purrr::map_dbl(alpha_list,
-    #                        ~mean(.x, na.rm = TRUE)
-    #                        )
+    H_max <- lapply(seq_along(delta_grid), function(id) {
+      H_sheets_dir(X_list = sheets_list,
+                   tout = expand.grid(t1 = xparam, t2 = xparam),
+                   delta = delta_grid[[id]],
+                   base_list = list(v1[[id]], v2[[id]]))
+    })
+
+    H_max_count <- sapply(H_max, function(H_grid) {
+      which.max(purrr::map_dbl(H_grid, ~mean(.x, na.rm = TRUE))) == 2
+    }) |> sum()
+
 
     save(alpha_mu,
          file = each_filepath)
