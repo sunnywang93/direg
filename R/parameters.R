@@ -9,17 +9,19 @@
 #' resulting from `expand.grid`.
 #' @param delta Numeric, determining the spacings.
 #' @param e List, containing the coordinates of the basis vectors.
+#' @returns Matrix, containing the mean squared deviations on the evaluation
+#' points `tout`.
 #' @export
 
 theta_sheets <- function(X_list, tout, delta, e) {
 
-  tout_minus <- tout |>
-    apply(1, function(x) pmax(x - (delta/2 * e), 0)) |>
-    t()
+  tout_minus <- cbind(pmax(tout[, 1] - (delta/2 * e[1]), 0),
+                      pmax(tout[, 2] - (delta/2 * e[2]), 0)
+                      )
 
-  tout_plus <- tout |>
-    apply(1, function(x) pmin(x + (delta/2 * e), 1)) |>
-    t()
+  tout_plus <- cbind(pmin(tout[, 1] + (delta/2 * e[1]), 1),
+                     pmin(tout[, 2] + (delta/2 * e[2]), 1)
+                     )
 
   X_minus <- purrr::map(X_list,
                         ~pracma::interp2(x = .x$t,

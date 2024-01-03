@@ -8,7 +8,7 @@
 #' @param xout Vector, containing the evaluation points along one 1 dimension
 #' to compute the regularity. The cartesian product is taken to produce the
 #' 2D grid.
-#' @return Numeric, containing the identified angle.
+#' @returns Numeric, containing the identified angle.
 
 identify_angle <- function(angles, dout, xout) {
 
@@ -52,7 +52,7 @@ identify_angle <- function(angles, dout, xout) {
 #' @param xout Vector, containing the evaluation points at which
 #' the angle should be computed.
 #' @param delta Numeric, determining the spacings.
-#' @return Vector, containing the angles identified by arccot and arctan.
+#' @returns Vector, containing the angles identified by arccot and arctan.
 #' @export
 
 estimate_angle <- function(X_list, xout, delta) {

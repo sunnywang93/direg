@@ -7,14 +7,14 @@ library(ggplot2)
 library(here)
 
 # Parameter settings
-N <- 100
-M <- 101
+N <- 200
+M <- 51
 H1 <- 0.8
 H2 <- 0.5
 delta_grid <- seq(0.05, 0.4, length.out = 21)
 rout <- 20
 xtrue <- seq(0, 1, length.out = M)
-xparam <- seq(0, 1, length.out = 21)
+xparam <- seq(0, 1, length.out = M)
 
 # Set seeds to ensure reproducibility
 set.seed(123)
@@ -59,6 +59,7 @@ foreach(i = 1:rout,
 
     set.seed(seeds[i])
     # Generate fractional brownian sheets
+
     X_list <- purrr::map(seq_len(N),
                          ~fbm_sheet(
                            t_n = M,
@@ -68,6 +69,8 @@ foreach(i = 1:rout,
                            H2 = .8)
     )
 
+
+
     # Check the variance of the simulated process
     #image(Reduce('+', purrr::map(X_list, ~.x^2)) / length(X_list))
 
@@ -75,14 +78,21 @@ foreach(i = 1:rout,
                               ~list(t = seq(0, 1, length.out = M),
                                     X = .x))
 
+
+
     alpha_sheet <- lapply(delta_grid, function(delta) {
       estimate_angle(X_list = sheets_list,
                      xout = xparam,
                      delta = delta)
     })
 
-    alpha_unique <- estimate_angle(X_list = sheets_list,
-                                   xout = xparam)
+    tictoc::tic()
+    alpha_unique <- purrr::map_dbl(alpha_sheet,
+                               ~identify_angle(angles = .x,
+                                               dout = delta_grid,
+                                               xout = xparam))
+
+    tictoc::toc()
 
 
     save(alpha_mu,
