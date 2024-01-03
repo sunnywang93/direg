@@ -4,7 +4,7 @@
 \alias{fbm_sheet_var}
 \title{Simulates fractional brownian sheet with time-varying anisotropy}
 \usage{
-fbm_sheet_var(t_n, e_n, alpha_fun, H1, H2, b_n = 10000)
+fbm_sheet_var(t_n, e_n, alpha_fun, H1, H2, b_n = 10000, type = "sum")
 }
 \arguments{
 \item{t_n}{Numeric, containing the number of evaluation points for the
@@ -23,6 +23,9 @@ brownian motion.}
 
 \item{b_n}{Numeric, indicating the number of evaluation points to simulate
 the fBms on.}
+
+\item{type}{String, either "sum" or "prod", indicating whether to simulate
+from the sum or products of two fBms.}
 }
 \value{
 Matrix, containing the fractional brownian sheets

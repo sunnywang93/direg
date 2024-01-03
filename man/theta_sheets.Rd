@@ -16,6 +16,12 @@ cartesian product of \verb{$t} with itself.}
 resulting from \code{expand.grid}.}
 
 \item{delta}{Numeric, determining the spacings.}
+
+\item{e}{List, containing the coordinates of the basis vectors.}
+}
+\value{
+Matrix, containing the mean squared deviations on the evaluation
+points \code{tout}.
 }
 \description{
 Computes the mean squared deviations of a surface on a grid on points

@@ -2,7 +2,7 @@
 % Please edit documentation in R/change_basis.R
 \name{estimate_angle}
 \alias{estimate_angle}
-\title{Estimates the angle between two basis vectors}
+\title{Estimates the angle between two basis vectors up to a reflection}
 \usage{
 estimate_angle(X_list, xout, delta)
 }
@@ -19,6 +19,9 @@ the angle should be computed.}
 
 \item{delta}{Numeric, determining the spacings.}
 }
+\value{
+Vector, containing the angles identified by arccot and arctan.
+}
 \description{
-Estimates the angle between two basis vectors
+Estimates the angle between two basis vectors up to a reflection
 }

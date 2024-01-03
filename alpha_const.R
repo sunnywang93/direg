@@ -7,14 +7,13 @@ library(ggplot2)
 library(here)
 
 # Parameter settings
-N <- 200
-M <- 51
-H1 <- 0.8
-H2 <- 0.5
-delta_grid <- seq(0.05, 0.4, length.out = 21)
-rout <- 20
-xtrue <- seq(0, 1, length.out = M)
-xparam <- seq(0, 1, length.out = M)
+Nset <- c(100, 200)
+Mset <- c(26, 51)
+H1_set <- c(0.8, 0.5)
+H2_set <- c(0.5, 0.8)
+delta_grid <- seq(0.05, 0.4, length.out = 15)
+rout <- 500
+xout <- seq(0, 1, length.out = 51)
 
 # Set seeds to ensure reproducibility
 set.seed(123)
@@ -80,18 +79,13 @@ foreach(i = 1:rout,
 
 
 
-    alpha_sheet <- lapply(delta_grid, function(delta) {
-      estimate_angle(X_list = sheets_list,
-                     xout = xparam,
-                     delta = delta)
-    })
-
+    alpha_sheet <- estimate_angle(X_list = sheets_list,
+                                  xout = xparam,
+                                  delta = 0.1)
     tictoc::tic()
-    alpha_unique <- purrr::map_dbl(alpha_sheet,
-                               ~identify_angle(angles = .x,
-                                               dout = delta_grid,
-                                               xout = xparam))
-
+    alpha_unique <- identify_angle(angles = alpha_sheet,
+                                   dout = delta_grid,
+                                   xout = xparam)
     tictoc::toc()
 
 
