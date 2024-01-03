@@ -9,6 +9,7 @@
 #' to compute the regularity. The cartesian product is taken to produce the
 #' 2D grid.
 #' @returns Numeric, containing the identified angle.
+#' @export
 
 identify_angle <- function(angles, dout, xout) {
 

@@ -9,12 +9,19 @@ library(here)
 # Parameter settings
 Nset <- c(100, 200)
 Mset <- c(26, 51)
-H1_set <- c(0.8, 0.5)
-H2_set <- c(0.5, 0.8)
+H1 <- 0.8
+H2 <- 0.5
 delta_grid <- seq(0.05, 0.4, length.out = 15)
 rout <- 500
 xout <- seq(0, 1, length.out = 51)
+alpha_set <- c(pi/3, pi/4, pi/6, 5*pi/6, pi+pi/3)
+delta_c <- 0.25
+type_set <- c("sum", "prod")
 
+param_cart <- expand.grid(N = Nset,
+                          M = Mset,
+                          alpha = alpha_set,
+                          type = type_set)
 # Set seeds to ensure reproducibility
 set.seed(123)
 
@@ -64,32 +71,38 @@ foreach(i = 1:rout,
                            t_n = M,
                            e_n = M,
                            alpha = pi / 6,
-                           H1 = .5,
-                           H2 = .8)
+                           H1 = H1,
+                           H2 = H2,
+                           type = type)
     )
-
-
 
     # Check the variance of the simulated process
     #image(Reduce('+', purrr::map(X_list, ~.x^2)) / length(X_list))
 
     sheets_list <- purrr::map(X_list,
-                              ~list(t = seq(0, 1, length.out = M),
+                              ~list(t = xout,
                                     X = .x))
 
-
-
     alpha_sheet <- estimate_angle(X_list = sheets_list,
-                                  xout = xparam,
-                                  delta = 0.1)
-    tictoc::tic()
+                                  xout = xout,
+                                  delta = (1 / sqrt(M)) * (1 + delta_c)
+                                  )
+
     alpha_unique <- identify_angle(angles = alpha_sheet,
                                    dout = delta_grid,
                                    xout = xparam)
-    tictoc::toc()
 
+    id_indic <- names(which.min(abs(alpha_unique - alpha_sheet))) == names(alpha_unique)
 
-    save(alpha_mu,
+    risk <- abs(alpha_unique - alpha_true)
+
+    result <- list(
+      'alpha_hat' = alpha_unique,
+      'error' = risk,
+      'id_indic' = as.double(id_indic)
+    )
+
+    save(result,
          file = each_filepath)
 
   }
@@ -109,9 +122,8 @@ result_list <- lapply(fls,
 saveRDS(purrr::map_dbl(result_list, ~.x),
         file = paste0("N", N,
                       "_M", M,
-                      "_H1", H1,
-                      "_H2", H2,
-                      "delta", delta,
+                      "alpha", alpha_true,
+                      "type", type,
                       ".rds")
 
 )
