@@ -5,11 +5,18 @@
 \title{Find the unique angle between the two basis vectors that provides the
 maximising regularity}
 \usage{
-identify_angle(angles, dout, xout)
+identify_angle(angles, X_list, dout, xout)
 }
 \arguments{
 \item{angles}{Vector, containing the arccot and arctan of the angle, for
 example outputted by the function \code{estimate_angle}.}
+
+\item{X_list}{List, containing the following elements:
+\itemize{
+\item \strong{$t} Vector of sampling points,
+\item \strong{$X} Matrix of observed points, measured on the bi-dimensional grid containing
+cartesian product of \verb{$t} with itself.
+}}
 
 \item{dout}{Vector, containing the grid of spacings (i.e delta) to compute
 the regularity. Plurality vote over the grid to find the maximising angles.}

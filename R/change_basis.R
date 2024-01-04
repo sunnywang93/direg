@@ -3,6 +3,10 @@
 #'
 #' @param angles Vector, containing the arccot and arctan of the angle, for
 #' example outputted by the function `estimate_angle`.
+#' @param X_list List, containing the following elements:
+#' - **$t** Vector of sampling points,
+#' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' cartesian product of `$t` with itself.
 #' @param dout Vector, containing the grid of spacings (i.e delta) to compute
 #' the regularity. Plurality vote over the grid to find the maximising angles.
 #' @param xout Vector, containing the evaluation points along one 1 dimension
@@ -11,19 +15,19 @@
 #' @returns Numeric, containing the identified angle.
 #' @export
 
-identify_angle <- function(angles, dout, xout) {
+identify_angle <- function(angles, X_list, dout, xout) {
 
   # Construct the two basis vectors
   v1_cot <- c(cos(angles["alpha_cot"]), sin(angles["alpha_cot"]))
   v1_tan <- c(cos(angles["alpha_tan"]), sin(angles["alpha_tan"]))
   # Construct the two reflected basis vectors
-  v1_cot_ref <- c(cos(angles["alpha_cot"] + pi/2),
-                  sin(angles["alpha_cot"] + pi/2))
-  v1_tan_ref <- c(cos(angles["alpha_tan"] + pi/2),
-                  sin(angles["alpha_tan"] + pi/2))
+  v1_cot_ref <- c(cos(pi - angles["alpha_cot"]),
+                  sin(pi - angles["alpha_cot"]))
+  v1_tan_ref <- c(cos(pi - angles["alpha_tan"]),
+                  sin(pi - angles["alpha_tan"]))
   # Compute the regularity along each basis vector along a grid of deltas
   H_v <- purrr::map(dout,
-                    ~H_sheets_dir(X_list = sheets_list,
+                    ~H_sheets_dir(X_list = X_list,
                      tout = expand.grid(t1 = xout, t2 = xout),
                      delta = .x,
                      base_list = list(v1_cot, v1_cot_ref,
@@ -34,10 +38,14 @@ identify_angle <- function(angles, dout, xout) {
   mode_idx <- u_idx[which.max(tabulate(match(max_idx, u_idx)))]
 
   # Return the unique angle that maximises the regularity
-  if(mode_idx %in% c(1, 2)) {
+  if(mode_idx == 1) {
     angles["alpha_cot"]
-  } else {
+  } else if(mode_idx == 2) {
+    pi - angles["alpha_cot"]
+  } else if(mode_idx == 3) {
     angles["alpha_tan"]
+  } else {
+    pi - angles["alpha_tan"]
   }
 
 }

@@ -86,6 +86,10 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum") {
   e1 <- c(1, 0)
   e2 <- c(0, 1)
 
+  if(alpha >= pi) {
+    alpha <- alpha - pi
+  }
+
   # Specify coordinates of other bases
   u1 <- c(cos(alpha), sin(alpha))
   u2 <- c(-sin(alpha), cos(alpha))
@@ -95,26 +99,53 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum") {
   t2_tilde <- seq(0, 1, length.out = e_n)
 
   # Construct the evaluation points along the other bases
-  t1 <- seq(0 , cos(alpha) + sin(alpha), length.out = t_n)
-  t2 <- seq(-sin(alpha), cos(alpha), length.out = t_n)
-
+  t1 <- seq(0, abs(cos(alpha)) + sin(alpha), length.out = t_n)
   # Simulate the 1D fractional brownian motions
-  B1 <- fbm_fft(H = H1, n = length(t1), grid_max = cos(alpha) + sin(alpha))
-  B2_tilde <- fbm_fft(H = H2, n = length(t1), grid_max = cos(alpha) + sin(alpha))
+  if(alpha <= pi/2) {
+    t2 <- seq(-sin(alpha), cos(alpha), length.out = t_n)
+    B1 <- fbm_fft(H = H1, n = length(t1), grid_max = max(t1))
 
-  # Obtain the indexes of the corresponding value of the fractional
-  # brownian motion on the negative domain
-  t2_idx_minus <- sapply(cos(alpha) - t2[t2 < 0],
-                         function(x) which.min(abs(x - t1)))
+    B2_tilde <- fbm_fft(H = H2, n = length(t1),
+                        grid_max = max(t1))
+    # Obtain the indexes of the corresponding value of the fractional
+    # brownian motion on the negative domain
+    t2_idx_minus <- sapply(-t2[t2 < 0], function(x) which.min(abs(x - t1)))
 
-  # Extract the values of the fbm on the negative part of the domain by
-  # the self-similarity property
-  B2_minus <- -B2_tilde[t2_idx_minus] +
-    B2_tilde[which.min(abs( cos(alpha) - t1 ))]
-  # Extract the values of the positive part
-  B2_plus <- B2_tilde[seq_len(length(t1) - length(B2_minus))]
-  # Combine them to get the full process
-  B2 <- c(B2_minus, B2_plus)
+    # Extract the values of the fbm on the negative part of the domain by
+    # the self-similarity property
+    B2_minus <- -B2_tilde[t2_idx_minus]
+    # Extract the values of the positive part
+    B2_plus <- B2_tilde[seq_len(length(t1) - length(B2_minus))]
+    # Combine them to get the full process
+    B2 <- c(B2_minus, B2_plus)
+
+  } else {
+    t1_proj <- seq(cos(alpha), sin(alpha), length.out = t_n)
+    t2 <- seq(cos(alpha) - sin(alpha), 0, length.out = t_n)
+
+    B1_tilde <- fbm_fft(H = H1, n = length(t1), grid_max = max(t1))
+
+    t1_idx_minus <- sapply(-t1_proj[t1_proj < 0],
+                           function(x) which.min(abs(x - t1)))
+
+    B1_minus <- -B1_tilde[t1_idx_minus]
+
+    B1_plus <- B1_tilde[seq_len(length(t1) - length(B1_minus))]
+    B1 <- c(B1_minus, B1_plus)
+
+    B2_tilde <- fbm_fft(H = H2, n = length(t1), grid_max = max(t1))
+
+    t2_idx_minus <- sapply(-t2[t2 < 0],
+                           function(x) which.min(abs(x - t1)))
+
+    B2_minus <- -B2_tilde[t2_idx_minus]
+    # Extract the values of the positive part
+    B2_plus <- B2_tilde[seq_len(length(t2) - length(B2_minus))]
+    # Combine them to get the full process
+    B2 <- c(B2_minus, B2_plus)
+
+
+  }
 
   # Find the coordinates of the evaluation points defined on the
   # canonical basis with respect to the other basis
