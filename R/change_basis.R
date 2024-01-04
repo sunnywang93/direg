@@ -32,10 +32,8 @@ identify_angle <- function(angles, X_list, dout, xout) {
                      delta = .x,
                      base_list = list(v1_cot, v1_cot_ref,
                                       v1_tan, v1_tan_ref)))
-  # Find the plurality maximising regularity
-  max_idx <- purrr::map_dbl(H_v, ~which.max(.x))
-  u_idx <- unique(max_idx)
-  mode_idx <- u_idx[which.max(tabulate(match(max_idx, u_idx)))]
+  # Compute the sum of regularities across the grid
+  mode_idx <- which.max(Reduce('+', H_v))
 
   # Return the unique angle that maximises the regularity
   if(mode_idx == 1) {

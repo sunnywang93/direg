@@ -80,7 +80,7 @@ fbm_fft <- function(H, n, grid_max) {
 #' @returns Matrix, containing the fractional brownian sheets
 #' observed on the canonical bases.
 #' @export
-fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum") {
+fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum", sigma = NULL) {
 
   # Specific coordinates of canonical bases
   e1 <- c(1, 0)
@@ -173,9 +173,16 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum") {
 
 
   # Convert the sequence into a matrix
-  matrix(X,
-         nrow = length(t1_tilde),
-         ncol = length(t2_tilde))
+  if(missing(sigma)) {
+    matrix(X,
+           nrow = length(t1_tilde),
+           ncol = length(t2_tilde))
+  } else {
+    noise <- rnorm(n = length(X), mean = 0, sd = sigma)
+    matrix(X + noise,
+           nrow = length(t1_tilde),
+           ncol = length(t2_tilde))
+  }
 
 }
 

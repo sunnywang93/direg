@@ -78,7 +78,6 @@ for(k in 1:nrow(param_cart)) {
 
       set.seed(seeds[i])
       # Generate fractional brownian sheets
-
       X_list <- purrr::map(seq_len(N),
                            ~fbm_sheet(
                              t_n = M,
@@ -86,7 +85,8 @@ for(k in 1:nrow(param_cart)) {
                              alpha = alpha_true,
                              H1 = H1,
                              H2 = H2,
-                             type = fbm_type)
+                             type = fbm_type,
+                             sigma = 0.001)
       )
 
 
