@@ -138,3 +138,45 @@ H_sheets_dir <- function(X_list, tout, delta, base_list) {
 }
 
 
+estimate_sigma <- function(X_list) {
+
+  tout <- purrr::map(X_list, ~expand.grid(t1 = .x$t, t2 = .x$t))
+
+  identicalValue <- function(x,y) if (identical(x,y)) x else FALSE
+
+  common_test <- Reduce(identicalValue, purrr::map(X_list, ~.x$t))
+
+  if(is.numeric(common_test)) {
+    min_idx <- sapply(seq_len(nrow(tout[[1]])), function(y) {
+      idx <- which.min(
+        abs(tout[[1]]$t1[y] - tout[[1]]$t1[-y]) + abs(tout[[1]]$t2[y] - tout[[1]]$t2[-y])
+        )
+      if(idx >= y) {
+        idx + 1
+      } else {
+        idx
+      }
+    })
+  } else {
+    min_idx <- purrr::map(tout,
+                           ~sapply(seq_len(nrow(.x)), function(y) {
+                             idx <- which.min(
+                               abs(.x$t1[y] - .x$t1[-y]) + abs(.x$t2[y] - .x$t2[-y])
+                             )
+                             if(idx >= y) {
+                               idx + 1
+                             } else {
+                               idx
+                             }
+                           })
+    )
+  }
+
+  purrr::map(X_list, ~sapply(seq_along(.x$X), function(id) {
+    (.x$X[id] - .x$X[min_idx[id]])^2
+  })
+  ) |> (\(x) sqrt(Reduce('+', x) / (2*length(x))))()
+
+
+}
+
