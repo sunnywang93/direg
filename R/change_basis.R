@@ -26,12 +26,17 @@ identify_angle <- function(angles, X_list, dout, xout) {
   v1_tan_ref <- c(cos(pi - angles["alpha_tan"]),
                   sin(pi - angles["alpha_tan"]))
   # Compute the regularity along each basis vector along a grid of deltas
+  noise <- mean(estimate_sigma(X_list = X_list))
+
+  tout <- expand.grid(t1 = xout, t2 = xout)
+
   H_v <- purrr::map(dout,
                     ~H_sheets_dir(X_list = X_list,
-                     tout = expand.grid(t1 = xout, t2 = xout),
+                     tout = tout,
                      delta = .x,
                      base_list = list(v1_cot, v1_cot_ref,
-                                      v1_tan, v1_tan_ref)))
+                                      v1_tan, v1_tan_ref),
+                     sigma = noise))
   # Compute the sum of regularities across the grid
   mode_idx <- which.max(Reduce('+', H_v))
 

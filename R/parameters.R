@@ -15,12 +15,12 @@
 
 theta_sheets <- function(X_list, tout, delta, e) {
 
-  tout_minus <- cbind(pmax(tout[, 1] - (delta/2 * e[1]), 0),
-                      pmax(tout[, 2] - (delta/2 * e[2]), 0)
+  tout_minus <- cbind(pmin(pmax(tout[, 1] - (delta/2 * e[1]), 0), 1),
+                      pmin(pmax(tout[, 2] - (delta/2 * e[2]), 0), 1)
                       )
 
-  tout_plus <- cbind(pmin(tout[, 1] + (delta/2 * e[1]), 1),
-                     pmin(tout[, 2] + (delta/2 * e[2]), 1)
+  tout_plus <- cbind(pmax(pmin(tout[, 1] + (delta/2 * e[1]), 1), 0),
+                     pmax(pmin(tout[, 2] + (delta/2 * e[2]), 1), 0)
                      )
 
   X_minus <- purrr::map(X_list,
@@ -113,7 +113,8 @@ H_sheets <- function(X_list, tout, delta) {
 #' of the respective bases functions.
 
 
-H_sheets_dir <- function(X_list, tout, delta, base_list) {
+H_sheets_dir <- function(X_list, tout, delta, base_list, sigma) {
+
 
   theta_2delta <- purrr::map(base_list,
                              ~theta_sheets(X_list = X_list,
@@ -127,13 +128,22 @@ H_sheets_dir <- function(X_list, tout, delta, base_list) {
                                           delta = delta,
                                           .x))
 
-  purrr::map2(theta_2delta, theta_delta,
-                       ~(log(.x) - log(.y)) / (2 * log(2))
-              ) |>
-    purrr::map_dbl(~mean(apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)
-                               )
-                         ,na.rm = TRUE)
-                   )
+
+  H_hat <- purrr::map2(theta_2delta, theta_delta,
+                       ~matrix(mapply(H_replace, .x, .y, sigma),
+                               nrow = nrow(.x),
+                               ncol = ncol(.x))
+                       )
+
+  purrr::map_dbl(H_hat, ~mean(pmax(.x, 0.1), na.rm = TRUE))
+
+  # purrr::map2(theta_2delta, theta_delta,
+  #                      ~(log(.x) - log(.y)) / (2 * log(2))
+  #             ) |>
+  #   purrr::map_dbl(~mean(apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)
+  #                              )
+  #                        ,na.rm = TRUE)
+  #                  )
 
 }
 
