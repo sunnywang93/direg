@@ -1,14 +1,15 @@
 
 
-log_transform <- function(a, b, c) {
-
-  if(a > b & b > c) {
-    (log(a - b) / (2*log(2))) - (log(b - c) / (2*log(2)))
-  } else {
-    1
-  }
-
-}
+#' Computation of regularity in the presence of noise
+#'
+#' Auxiliary function used in the computation of the regularity along some
+#' directional vector.
+#'
+#' @param theta_2delta Numeric.
+#' @param theta_delta Numeric.
+#' @param sigma Numeric.
+#' @returns Numeric.
+#' @export
 
 H_replace <- function(theta_2delta, theta_delta, sigma) {
 
@@ -20,6 +21,17 @@ H_replace <- function(theta_2delta, theta_delta, sigma) {
   }
 
 }
+
+
+identicalValue <- function(x,y) {
+  if (identical(x,y)) {
+      x
+    } else {
+      FALSE
+    }
+}
+
+
 
 
 

@@ -90,7 +90,7 @@ H_sheets <- function(X_list, tout, delta) {
     (\(x) Reduce(pmin, x))()
 
   list(
-    H = pmin(pmax(H_hat, 0.1), 1),
+    H = mean(pmin(pmax(H_hat, 0.1), 1)),
     theta_e2 = theta_delta$e2,
     theta_e1 = theta_delta$e1
   )
@@ -109,8 +109,11 @@ H_sheets <- function(X_list, tout, delta) {
 #' @param delta Numeric, determining the spacings.
 #' @param base_list List, with each element containing the coordinates of
 #' each vector.
-#' @returns List, containing a matrix with the regularity along each direction
-#' of the respective bases functions.
+#' @param sigma Numeric, indicating the noise level, for example from the
+#' `estimated_sigma` function.
+#' @returns Vector, containing the estimated regularity along each direction
+#' of `base_list`.
+#' @export
 
 
 H_sheets_dir <- function(X_list, tout, delta, base_list, sigma) {
@@ -128,65 +131,46 @@ H_sheets_dir <- function(X_list, tout, delta, base_list, sigma) {
                                           delta = delta,
                                           .x))
 
-
   H_hat <- purrr::map2(theta_2delta, theta_delta,
                        ~matrix(mapply(H_replace, .x, .y, sigma),
                                nrow = nrow(.x),
-                               ncol = ncol(.x))
+                               ncol = ncol(.x)
+                               )
                        )
 
   purrr::map_dbl(H_hat, ~mean(pmax(.x, 0.1), na.rm = TRUE))
 
-  # purrr::map2(theta_2delta, theta_delta,
-  #                      ~(log(.x) - log(.y)) / (2 * log(2))
-  #             ) |>
-  #   purrr::map_dbl(~mean(apply(.x, 2, function(x) pmin(pmax(x, 0.1), 1)
-  #                              )
-  #                        ,na.rm = TRUE)
-  #                  )
-
 }
 
 
+#' Estimate the noise at the observed points of functional surfaces
+#'
+#' @param X_list List, containing the following elements:
+#' - **$t** Vector of sampling points,
+#' - **X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' cartesian product of `$t` with itself.
+#' @returns Matrix, where the number of rows and columns are each given by the
+#' length of the sampling points.
+#' @export
+
 estimate_sigma <- function(X_list) {
 
-  tout <- purrr::map(X_list, ~expand.grid(t1 = .x$t, t2 = .x$t))
-
-  identicalValue <- function(x,y) if (identical(x,y)) x else FALSE
-
-  common_test <- Reduce(identicalValue, purrr::map(X_list, ~.x$t))
-
-  if(is.numeric(common_test)) {
-    min_idx <- sapply(seq_len(nrow(tout[[1]])), function(y) {
-      idx <- which.min(
-        abs(tout[[1]]$t1[y] - tout[[1]]$t1[-y]) + abs(tout[[1]]$t2[y] - tout[[1]]$t2[-y])
-        )
-      if(idx >= y) {
-        idx + 1
-      } else {
-        idx
-      }
+  # Identify nearest neighbours for each observed point
+  tout <- expand.grid(t1 = X_list[[1]]$t, t2 = X_list[[1]]$t)
+  min_idx <- sapply(seq_len(nrow(tout)), function(y) {
+    idx <- which.min(
+      abs(tout$t1[y] - tout$t1[-y]) + abs(tout$t2[y] - tout$t2[-y])
+      )
+    ifelse(idx >= y, idx+1, idx)
     })
-  } else {
-    min_idx <- purrr::map(tout,
-                           ~sapply(seq_len(nrow(.x)), function(y) {
-                             idx <- which.min(
-                               abs(.x$t1[y] - .x$t1[-y]) + abs(.x$t2[y] - .x$t2[-y])
-                             )
-                             if(idx >= y) {
-                               idx + 1
-                             } else {
-                               idx
-                             }
-                           })
-    )
-  }
 
-  purrr::map(X_list, ~sapply(seq_along(.x$X), function(id) {
-    (.x$X[id] - .x$X[min_idx[id]])^2
-  })
-  ) |> (\(x) sqrt(Reduce('+', x) / (2*length(x))))()
-
+  # Compute noise by averaging over all curves
+  lapply(X_list, function(curve) {
+    sapply(seq_along(curve$X), function(id) {
+      (curve$X[id] - curve$X[min_idx[id]])**2
+    })
+  }) |>
+    (\(x) mean(sqrt(Reduce('+', x) / (2*length(x)))))()
 
 }
 

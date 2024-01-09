@@ -86,7 +86,7 @@ for(k in 1:nrow(param_cart)) {
                              H1 = H1,
                              H2 = H2,
                              type = fbm_type,
-                             sigma = 0.1)
+                             sigma = 0.05)
       )
 
 

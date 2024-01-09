@@ -4,7 +4,7 @@
 \alias{fbm_sheet}
 \title{Simulates fractional brownian sheet with constant anisotropy}
 \usage{
-fbm_sheet(t_n, e_n, alpha, H1, H2, type = "sum")
+fbm_sheet(t_n, e_n, alpha, H1, H2, type = "sum", sigma = NULL)
 }
 \arguments{
 \item{t_n}{Numeric, the number of evaluation points for the

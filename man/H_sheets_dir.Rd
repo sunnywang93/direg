@@ -4,7 +4,7 @@
 \alias{H_sheets_dir}
 \title{Compute the Hölder regularity along the direction of input bases}
 \usage{
-H_sheets_dir(X_list, tout, delta, base_list)
+H_sheets_dir(X_list, tout, delta, base_list, sigma)
 }
 \arguments{
 \item{X_list}{List, containing the following elements:
@@ -21,10 +21,13 @@ coordinates in the \code{x} and \code{y} axis.}
 
 \item{base_list}{List, with each element containing the coordinates of
 each vector.}
+
+\item{sigma}{Numeric, indicating the noise level, for example from the
+\code{estimated_sigma} function.}
 }
 \value{
-List, containing a matrix with the regularity along each direction
-of the respective bases functions.
+Vector, containing the estimated regularity along each direction
+of \code{base_list}.
 }
 \description{
 Compute the Hölder regularity along the direction of input bases
