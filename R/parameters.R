@@ -8,7 +8,7 @@
 #' @param tout Data frame of points on which the thetas should be computed,
 #' resulting from `expand.grid`.
 #' @param delta Numeric, determining the spacings.
-#' @param e List, containing the coordinates of the basis vectors.
+#' @param e Vector, containing the coordinates of the directional vector.
 #' @returns Matrix, containing the mean squared deviations on the evaluation
 #' points `tout`.
 #' @export
@@ -102,7 +102,7 @@ H_sheets <- function(X_list, tout, delta) {
 #'
 #' @param X_list List, containing the following elements:
 #' - **$t** Vector of sampling points,
-#' - **X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
 #' cartesian product of `$t` with itself.
 #' @param tout Matrix / dataframe with 2 dimensions, specifying all the
 #' coordinates in the `x` and `y` axis.
@@ -112,7 +112,8 @@ H_sheets <- function(X_list, tout, delta) {
 #' @param sigma Numeric, indicating the noise level, for example from the
 #' `estimated_sigma` function.
 #' @returns Vector, containing the estimated regularity along each direction
-#' of `base_list`.
+#' of `base_list`. The order of outputs corresponds to the order of inputs in
+#' `base_list`.
 #' @export
 
 
@@ -173,4 +174,41 @@ estimate_sigma <- function(X_list) {
     (\(x) mean(sqrt(Reduce('+', x) / (2*length(x)))))()
 
 }
+
+
+#' Estimates the Hölder constant along some directional vector
+#'
+#' Computation is done using the mean-squared continuity that arises from the class
+#' of stochastic process considered. Estimates are first computed on a grid of time
+#' points, before the average over the time points are taken to stabilise estimates.
+#'
+#' @param X_list List, containing the following elements:
+#' - **$t** Vector of sampling points,
+#' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' cartesian product of `$t` with itself.
+#' @param xout Vector, containing the evaluation points at which
+#' the estimates should be computed along one dimension. Computation is done
+#' over the cartesian product of `xout` with itself.
+#' @param delta Numeric, determining the spacings.
+#' @param v Vector, determining the direction at which the Hölder constant should
+#' be estimated.
+#' @param Hv Numeric, containing the Hölder regularity along direction `v`.
+#' @returns Numeric, containing the Hölder constant.
+#' @export
+
+L_sheets <- function(X_list, xout, delta, v, Hv) {
+
+  tout <- expand.grid(t1 = xout, t2 = xout)
+
+  theta_delta <- theta_sheets(X_list = X_list,
+                              tout = tout,
+                              delta = delta,
+                              v)
+
+  mean(theta_delta / delta**(2*Hv))
+
+}
+
+
+
 

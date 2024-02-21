@@ -10,7 +10,7 @@ H_sheets_dir(X_list, tout, delta, base_list, sigma)
 \item{X_list}{List, containing the following elements:
 \itemize{
 \item \strong{$t} Vector of sampling points,
-\item \strong{X} Matrix of observed points, measured on the bi-dimensional grid containing
+\item \strong{$X} Matrix of observed points, measured on the bi-dimensional grid containing
 cartesian product of \verb{$t} with itself.
 }}
 

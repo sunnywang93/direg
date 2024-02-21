@@ -31,7 +31,15 @@ identicalValue <- function(x,y) {
     }
 }
 
+#' Computes the Epanechnikov Kernel
+#'
+#' @param y Vector of points.
+#' @returns Vector.
+#' @export
 
+epa_kernel <- function(y) {
+  3/4 * (1 - y^2) * (abs(y) <= 1)
+}
 
 
 

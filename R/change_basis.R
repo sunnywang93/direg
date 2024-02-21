@@ -8,7 +8,7 @@
 #' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
 #' cartesian product of `$t` with itself.
 #' @param dout Vector, containing the grid of spacings (i.e delta) to compute
-#' the regularity. Plurality vote over the grid to find the maximising angles.
+#' the regularity.
 #' @param xout Vector, containing the evaluation points along one 1 dimension
 #' to compute the regularity. The cartesian product is taken to produce the
 #' 2D grid.
@@ -26,7 +26,7 @@ identify_angle <- function(angles, X_list, dout, xout) {
   v1_tan_ref <- c(cos(pi - angles["alpha_tan"]),
                   sin(pi - angles["alpha_tan"]))
   # Compute the regularity along each basis vector along a grid of deltas
-  noise <- mean(estimate_sigma(X_list = X_list))
+  noise <- estimate_sigma(X_list = X_list)
 
   tout <- expand.grid(t1 = xout, t2 = xout)
 
