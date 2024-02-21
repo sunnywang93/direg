@@ -8,7 +8,7 @@ bw_smooth <- function(H1, H2, L1, L2, sigma, k) {
 #' Bi-variate kernel smoothing for functional data on common design
 #'
 #' @param Y_list List, containing the following elements:
-#' - **$t** Vector of sampling points,
+#' - **$t** Vector of sampling points.
 #' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
 #' cartesian product of `$t` with itself.
 #' @param bw_vec Vector of bandwidths, corresponding to the diagonal elements of

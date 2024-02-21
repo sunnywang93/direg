@@ -19,7 +19,7 @@ cartesian product of \verb{$t} with itself.
 }}
 
 \item{dout}{Vector, containing the grid of spacings (i.e delta) to compute
-the regularity. Plurality vote over the grid to find the maximising angles.}
+the regularity.}
 
 \item{xout}{Vector, containing the evaluation points along one 1 dimension
 to compute the regularity. The cartesian product is taken to produce the

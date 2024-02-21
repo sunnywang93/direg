@@ -27,7 +27,8 @@ each vector.}
 }
 \value{
 Vector, containing the estimated regularity along each direction
-of \code{base_list}.
+of \code{base_list}. The order of outputs corresponds to the order of inputs in
+\code{base_list}.
 }
 \description{
 Compute the Hölder regularity along the direction of input bases

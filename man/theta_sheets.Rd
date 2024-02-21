@@ -17,7 +17,7 @@ resulting from \code{expand.grid}.}
 
 \item{delta}{Numeric, determining the spacings.}
 
-\item{e}{List, containing the coordinates of the basis vectors.}
+\item{e}{Vector, containing the coordinates of the directional vector.}
 }
 \value{
 Matrix, containing the mean squared deviations on the evaluation
