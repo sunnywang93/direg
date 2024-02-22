@@ -24,5 +24,8 @@ on the cartesian product of \code{xout} with itself.}
 List, corresponding to the smooth curves.
 }
 \description{
-Bi-variate kernel smoothing for functional data on common design
+Multiplicative kernels are used, with a diagonal bandwidth matrix.
+Warning! If smoothing is desired after a change of basis from considering
+the directional regularity, remember to also change the evaluation points
+in addition to the input list of sampling and observed points.
 }

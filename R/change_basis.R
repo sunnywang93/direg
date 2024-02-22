@@ -83,6 +83,37 @@ estimate_angle <- function(X_list, xout, delta) {
 
 }
 
+#' Performs a change-of-basis for bivariate functional data
+#'
+#' Given a rotational matrix, a change of basis is performed for the sampling
+#' points of functional data in the form of bivariate sheets. Relevant for
+#' anisotropic functional data with common design.
+#'
+#' @param Y_list List, containing the following elements:
+#' - **$t** Vector of sampling points,
+#' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
+#' cartesian product of `$t` with itself.
+#' @param rot_mat Matrix, containing the coordinates of the linear transformation.
+#' Typically a rotation matrix.
+#' @returns List, containing the transformed sampling points and original
+#' observations.
+#' @export
+
+change_basis <- function(Y_list, rot_mat) {
+
+  tout <- as.matrix(
+    expand.grid(t1 = Y_list[[1]]$t, t2 = Y_list[[1]]$t)
+  )
+
+  Ralpha_t <- t(apply(tout, 1, function(tm) crossprod(t(rot_mat), tm)))
+
+
+  purrr::map(Y_list,
+             ~list(t = Ralpha_t,
+                   X = .x$X))
+
+}
+
 
 alpha_avg <- function(X, npart) {
 
