@@ -1,12 +1,19 @@
 
 library(direg)
+library(foreach)
+library(parallel)
+library(tictoc)
+library(snow)
+library(ggplot2)
+library(here)
 
 # Parameter settings
+set.seed(1234)
 alpha_set <- c(0, pi/3, 5*pi/6)
 N0 <- 150
 M0 <- 101
 sig <- 0.05
-rout <- 320
+rout <- 240
 H1 <- 0.8
 H2 <- 0.5
 delta_c <- 0.25
@@ -106,15 +113,65 @@ L_iso <- c(L_sheets(X_list = Y_sum_learn,
 
 
 # =========================================== Testing set
+# Parameter settings for online set
 M0_new_dense <- 201
-M0_obs <- 101
+M0_obs <- 121
 xout_dense <- seq(0, 1, length.out = M0_new_dense)
 xout_obs <- seq(0, 1, length.out = M0_obs)
 k <- (3/ (4 * 0.99))^2
 
+set.seed(123)
+seeds <- sample.int(10000, size = rout)
+
+inter_dir <- here('intermediate')
+result_folder <- here('result_smooth')
+
+if(!dir.exists(result_folder)) {
+  dir.create(result_folder)
+}
+
+
+if(!dir.exists(inter_dir)) {
+  dir.create(inter_dir)
+}
+
+
+# Set number of cores to use - all available except 2
+n_cores <- detectCores() - 4
+# Create cluster nodes
+cl <- makeCluster(spec = n_cores)
+# Register cluster
+doSNOW::registerDoSNOW(cl)
+# Create progress bar
+pb <- txtProgressBar(min = 1,
+                     max = rout,
+                     style = 3)
+
+opts <- list(progress = function(n) setTxtProgressBar(pb, n))
+
+
+tic()
+foreach(i = 1:rout,
+        .packages = c("direg"),
+        .options.snow = opts) %dopar%
+  {
+
+    each_filename <- paste0('result_',
+                            as.character(i),
+                            '.rda')
+
+    each_filepath <- file.path(inter_dir,
+                               each_filename)
+
+    if (file.exists(each_filepath)) {
+      next
+    }
+
+    set.seed(seeds[i])
+
 # Generate true curve on a dense grid, first without noise, then
 # manually add noise to the discretised ones
-Y_new_true <- purrr::map(seq_len(20),
+Y_new_true <- purrr::map(seq_len(1),
                          ~fbm_sheet(
                            t_n = M0_new_dense,
                            e_n = M0_new_dense,
@@ -155,6 +212,7 @@ Y_new_noisy <- purrr::map(Y_new_obs,
 tout <- expand.grid(t1 = xout_dense,
                     t2 = xout_dense)
 
+# Rotation on the smoothing grid
 tout_rot <- t(apply(tout, 1, function(x) crossprod(t(R_alpha), x)))
 
 # Perform rotation on the observed grid
@@ -199,12 +257,38 @@ risk_ani <- purrr::map2_dbl(Y_new_true, Y_smoothed,
 risk_iso <- purrr::map2_dbl(Y_new_true, Y_smoothed_iso,
                             ~mean(abs(.x$X - .y)))
 
+risk_rel <- risk_ani / risk_iso
 
-par(mfrow = c(1, 4))
-image(Y_new_true[[11]]$X)
-image(Y_new_noisy[[11]]$X)
-image(Y_smoothed[[11]])
-image(Y_smoothed_iso[[11]])
+result <- list(
+  'risk_rel' = as.double(risk_rel),
+  'h_ani' = h_star,
+  'h_iso' = h_star_iso
+)
+
+save(result,
+     file = each_filepath)
+
+  }
 
 
+stopCluster(cl)
+toc()
+
+fls <- list.files(inter_dir,
+                  pattern = ".rda")
+
+
+result_list <- lapply(fls,
+                      function(x) get(eval(load(paste0(inter_dir, '/', x
+                      )))))
+
+
+saveRDS(result_list,
+        file = paste0(result_folder,
+                      "/alpha_", round(alpha_set[2], 2),
+                      ".rds")
+        )
+
+
+fs::file_delete(inter_dir)
 

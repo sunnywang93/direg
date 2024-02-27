@@ -327,56 +327,56 @@ boxplot_N200_M51_prod <- result_long |>
   scale_fill_grey(start = 0.3, end = 1)
 
 
-library(tikzDevice)
-tikz(file = "N100_M26_sum.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N100_M26_sum)
-dev.off()
-
-
-tikz(file = "N100_M51_sum.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N100_M51_sum)
-dev.off()
-
-tikz(file = "N200_M26_sum.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N200_M26_sum)
-dev.off()
-
-tikz(file = "N200_M51_sum.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N200_M51_sum)
-dev.off()
-
-
-tikz(file = "N100_M51_prod.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N100_M51_prod)
-dev.off()
-
-tikz(file = "N200_M51_prod.tex", width = 5, height = 5,
-     standAlone = TRUE)
-plot(boxplot_N200_M51_prod)
-dev.off()
-
-
-tikz(file = "var_pi4.tex", width = 5, height = 5,
-     standAlone = TRUE)
-
-image(Reduce('+', purrr::map(X_list_prod, ~.x^2)) /
-        length(X_list_prod),
-      main = "Variance of Anisotropic process",
-      xlab = "t1",
-      ylab = "t2")
-dev.off()
-
-
-tikz(file = "iso.tex", width = 5, height = 5,
-     standAlone = TRUE)
-image(Reduce('+', purrr::map(X_iso, ~.x^2)) / length(X_iso),
-      main = "Variance of isotropic process",
-      xlab = "t1", ylab = "t2")
-dev.off()
-
+# library(tikzDevice)
+# tikz(file = "N100_M26_sum.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N100_M26_sum)
+# dev.off()
+#
+#
+# tikz(file = "N100_M51_sum.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N100_M51_sum)
+# dev.off()
+#
+# tikz(file = "N200_M26_sum.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N200_M26_sum)
+# dev.off()
+#
+# tikz(file = "N200_M51_sum.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N200_M51_sum)
+# dev.off()
+#
+#
+# tikz(file = "N100_M51_prod.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N100_M51_prod)
+# dev.off()
+#
+# tikz(file = "N200_M51_prod.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# plot(boxplot_N200_M51_prod)
+# dev.off()
+#
+#
+# tikz(file = "var_pi4.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+#
+# image(Reduce('+', purrr::map(X_list_prod, ~.x^2)) /
+#         length(X_list_prod),
+#       main = "Variance of Anisotropic process",
+#       xlab = "t1",
+#       ylab = "t2")
+# dev.off()
+#
+#
+# tikz(file = "iso.tex", width = 5, height = 5,
+#      standAlone = TRUE)
+# image(Reduce('+', purrr::map(X_iso, ~.x^2)) / length(X_iso),
+#       main = "Variance of isotropic process",
+#       xlab = "t1", ylab = "t2")
+# dev.off()
+#
 
