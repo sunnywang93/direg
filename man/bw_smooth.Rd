@@ -4,7 +4,7 @@
 \alias{bw_smooth}
 \title{Calculate plug-in bandwidth for adaptive bivariate kernel smoothing}
 \usage{
-bw_smooth(H1, H2, L1, L2, sigma, k, M0)
+bw_smooth(H1, H2, L1, L2, sigma, k, M0, rate = TRUE)
 }
 \arguments{
 \item{H1}{Numeric, containing the Hölder regularity along the first dimension.}

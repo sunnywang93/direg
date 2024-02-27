@@ -4,7 +4,7 @@
 \alias{ksmooth_bi}
 \title{Bi-variate kernel smoothing for functional data on common design}
 \usage{
-ksmooth_bi(Y_list, bw_vec, xout)
+ksmooth_bi(Y_list, bw_vec, tobs, tout)
 }
 \arguments{
 \item{Y_list}{List, containing the following elements:
@@ -17,8 +17,7 @@ cartesian product of \verb{$t} with itself.
 \item{bw_vec}{Vector of bandwidths, corresponding to the diagonal elements of
 the bandwidth matrix.}
 
-\item{xout}{Vector of evaluation points along one dimension. Smoothing is performed
-on the cartesian product of \code{xout} with itself.}
+\item{xout}{Matrix of evaluation points in two dimensions.}
 }
 \value{
 List, corresponding to the smooth curves.
