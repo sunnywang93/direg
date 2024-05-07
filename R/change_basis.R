@@ -78,8 +78,9 @@ estimate_angle <- function(X_list, xout, delta) {
   tan_alpha <- mean(H_list$theta_e2 / H_list$theta_e1,
                     na.rm = TRUE)**(1 / (2 * H_list$H))
 
-  c(alpha_cot = pracma::acot(tan_alpha),
-    alpha_tan = atan(tan_alpha))
+  c(g_hat = tan_alpha,
+    alpha_acot = pracma::acot(tan_alpha),
+    alpha_atan = atan(tan_alpha))
 
 }
 

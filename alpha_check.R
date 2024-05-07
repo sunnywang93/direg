@@ -7,19 +7,20 @@ library(ggplot2)
 library(here)
 
 # Parameter settings
-Nset <- c(100, 200)
-Mset <- c(51, 101)
-H1 <- 0.8
-H2 <- 0.5
-rout <- 400
-alpha_set <- c(pi/3, pi/6, 5*pi/6)
+N <- 100
+M <- 51
+H1 <- 0.5
+H2 <- 0.8
+rout <- 200
+alpha_set <- seq(from = pi/20,
+                 to = pi,
+                 length.out = 20)
 delta_c <- 0.25
-sigma_set <- c(0, 0.01, 0.05, 0.1)
+sigma <- 0.05
+xout <- seq(0, 1, length.out = M)
+delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
 
-param_cart <- expand.grid(N = Nset,
-                          M = Mset,
-                          alpha = alpha_set,
-                          sigma = sigma_set)
+param_cart <- expand.grid(alpha = alpha_set)
 # Set seeds to ensure reproducibility
 set.seed(123)
 
@@ -40,7 +41,7 @@ for(k in 1:nrow(param_cart)) {
     dir.create(inter_dir)
   }
   # Set number of cores to use - all available except 2
-  n_cores <- detectCores() - 2
+  n_cores <- 50
   # Create cluster nodes
   cl <- makeCluster(spec = n_cores)
   # Register cluster
@@ -52,12 +53,7 @@ for(k in 1:nrow(param_cart)) {
 
   opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
-  N <- param_cart[k, "N"]
-  M <- param_cart[k, "M"]
   alpha_true <- param_cart[k, "alpha"]
-  sigma_true <- param_cart[k, "sigma"]
-  xout <- seq(0, 1, length.out = M)
-  delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
 
   tic()
   foreach(i = 1:rout,
@@ -79,26 +75,14 @@ for(k in 1:nrow(param_cart)) {
       set.seed(seeds[i])
       # Generate sum of fBms
       X_list_sum <- purrr::map(seq_len(N),
-                           ~fbm_sheet(
-                             t_n = M,
-                             e_n = M,
-                             alpha = alpha_true,
-                             H1 = H1,
-                             H2 = H2,
-                             type = "sum",
-                             sigma = sigma_true)
-      )
-
-      # Generate prod of fBms
-      X_list_prod <- purrr::map(seq_len(N),
                                ~fbm_sheet(
                                  t_n = M,
                                  e_n = M,
                                  alpha = alpha_true,
                                  H1 = H1,
                                  H2 = H2,
-                                 type = "prod",
-                                 sigma = sigma_true)
+                                 type = "sum",
+                                 sigma = sigma)
       )
 
 
@@ -108,38 +92,23 @@ for(k in 1:nrow(param_cart)) {
                                     ~list(t = xout,
                                           X = .x))
 
-      sheets_list_prod <- purrr::map(X_list_prod,
-                                    ~list(t = xout,
-                                          X = .x))
-
       alpha_sheet_sum <- estimate_angle(X_list = sheets_list_sum,
                                         xout = xout,
                                         delta = (1 / sqrt(M)) * (1 + delta_c)
-                                        )
-
-      alpha_sheet_prod <- estimate_angle(X_list = sheets_list_prod,
-                                         xout = xout,
-                                         delta = (1 / sqrt(M)) * (1 + delta_c)
       )
+
 
       alpha_unique_sum <- identify_angle(angles = alpha_sheet_sum,
                                          X_list = sheets_list_sum,
                                          dout = delta_grid,
                                          xout = xout)
 
-      alpha_unique_prod <- identify_angle(angles = alpha_sheet_prod,
-                                          X_list = sheets_list_prod,
-                                          dout = delta_grid,
-                                          xout = xout)
 
       risk_sum <- abs(alpha_unique_sum - alpha_true)
-      risk_prod <- abs(alpha_unique_prod - alpha_true)
 
       result <- list(
         'alpha_hat_sum' = alpha_unique_sum,
-        'alpha_hat_prod' = alpha_unique_prod,
-        'risk_sum' = risk_sum,
-        'risk_prod' = risk_prod
+        'risk_sum' = risk_sum
       )
 
       save(result,
@@ -163,7 +132,7 @@ for(k in 1:nrow(param_cart)) {
           file = paste0(result_folder, "/N", N,
                         "_M", M,
                         "_alpha", round(alpha_true, 2),
-                        "_sigma", sigma_true,
+                        "_sigma", sigma,
                         ".rds")
 
   )
@@ -184,6 +153,7 @@ names(dat_list) <- basename(file_names)
 dat_list <- lapply(dat_list, function(dat) {
   t(sapply(dat, function(x) x))
 })
+
 library(dplyr)
 library(tidyr)
 result_df <- bind_rows(
@@ -201,56 +171,75 @@ result_df <- bind_rows(
 )
 
 result_df$alpha_hat_sum <- unlist(result_df$alpha_hat_sum)
-result_df$alpha_hat_prod <- unlist(result_df$alpha_hat_prod)
+#result_df$alpha_hat_prod <- unlist(result_df$alpha_hat_prod)
 result_df$risk_sum <- unlist(result_df$risk_sum)
-result_df$risk_prod <- unlist(result_df$risk_prod)
+#result_df$risk_prod <- unlist(result_df$risk_prod)
 
 result_long <- result_df |>
-  pivot_longer(cols = c(alpha_hat_sum, alpha_hat_prod, risk_sum, risk_prod),
+  pivot_longer(cols = c(alpha_hat_sum, risk_sum),
                names_to = c(".value", "dgp"),
                names_pattern = "(.+)_(.+)",
                values_to = "value")
 
-
-boxplot_N100_M26_sum <- result_long |>
-  filter(dgp == "sum", N == 100, M == 26) |>
-  ggplot(aes(x = as.factor(sigma), y = risk,
-             fill = as.factor(alpha))) +
-  geom_boxplot() +
-  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 26)$") +
-  xlab("$\\sigma$") +
-  ylab("$\\mathcal{R}_{\\alpha}$") +
-  labs(fill = "$\\alpha$") +
-  theme_minimal() +
-  scale_fill_grey(start = 0.3, end = 1)
+result_long <- result_long |>
+  mutate(risk = risk - pi/2)
 
 
-lim_N100_N26_prod <- filter(result_long,
-                            dgp == "prod",
-                            N == 100,
-                            M == 26) |>
-  pull(risk) |>
-  quantile(c(.1, .9))
-
-boxplot_N100_M26_prod <- result_long |>
-  ggplot(aes(x = as.factor(sigma), y = risk,
-             fill = as.factor(alpha))) +
-  geom_boxplot(outlier.shape = NA) +
-  scale_y_continuous(limits = quantile(lim_N100_N26_prod, c(0.1, 0.9))) +
-  ggtitle("Boxplots $f_1 = B_1 * B2 (N = 100, M = 26)$") +
-  xlab("$\\sigma$") +
-  ylab("$\\mathcal{R}_{\\alpha}$") +
-  labs(fill = "$\\alpha$") +
-  theme_minimal() +
-  scale_fill_grey(start = 0.3, end = 1)
+result_long <- result_long |>
+  mutate(risk = abs(risk))
 
 
 boxplot_N100_M51_sum <- result_long |>
-  filter(dgp == "sum", N == 100, M == 51) |>
+  filter(dgp == "sum", N == 100, M == 51,
+         alpha_hat != 2.67) |>
   ggplot(aes(x = as.factor(sigma), y = risk,
              fill = as.factor(alpha))) +
   geom_boxplot() +
   ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 51)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\alpha}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+library(tikzDevice)
+
+tikz(file = "/home/swang/directional_regularity/plots/alpha_explained2.tex",
+     width = 5,
+     height = 5,
+     standAlone = TRUE)
+plot(boxplot_N100_M51_sum)
+dev.off()
+
+
+lim_N100_M51_prod <- filter(result_long,
+                            dgp == "prod",
+                            N == 100,
+                            M == 51) |>
+  pull(risk) |>
+  quantile(c(.1, .9))
+
+boxplot_N100_M51_prod <- result_long |>
+  ggplot(aes(x = as.factor(sigma), y = risk,
+             fill = as.factor(alpha))) +
+  geom_boxplot(outlier.shape = NA) +
+  scale_y_continuous(limits = quantile(lim_N100_M51_prod, c(0.1, 0.9))) +
+  ggtitle("Boxplots $f_1 = B_1 * B2 (N = 100, M = 51)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\alpha}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1)
+
+
+boxplot_N100_M101_sum <- result_long |>
+  filter(dgp == "sum", N == 100, M == 101) |>
+  ggplot(aes(x = as.factor(sigma), y = risk,
+             fill = as.factor(alpha))) +
+  geom_boxplot() +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 101)$") +
   xlab("$\\sigma$") +
   ylab("$\\mathcal{R}_{\\alpha}$") +
   labs(fill = "$\\alpha$") +

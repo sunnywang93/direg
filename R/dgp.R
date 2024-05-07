@@ -20,12 +20,12 @@ fbm_fft <- function(H, n, grid_max) {
   lambda <- -1
 
   while(sum(lambda < 0) >= 1) {
-    m <- 2**g
+    m <- 2**g - 1
     # Construct covariance vector - now based on n equally spaced points on
     # grid - how can we adapt the covariance to be evaluated at input grid points?
     cov_vec <- c()
     cov_vec[1] <- 1 # Variance of increments as the initial value
-    for(k in 1:(m/2)) {
+    for(k in 1:((m+1) / 2)) {
       cov_vec[k+1] <- 0.5 * ((k + 1)**(2*H) - 2*k**(2*H) + (k-1)**(2*H))
     }
 
@@ -44,16 +44,22 @@ fbm_fft <- function(H, n, grid_max) {
   # Compute vector to perform fft on
   a <- c()
   a[1] <- sqrt(lambda[1] / m) * rnorm(1)
-  a[2:(m/2 + 1)] <- sqrt(lambda[2:(m/2+1)] / (2 * n)) *
-    (rnorm(m/2) + rnorm(m/2)*1i)
-  a[m:(m/2 + 2)] <- sqrt(lambda[1:(m/2 - 1)] / (2 * n)) *
-    (rnorm(m/2-1) - rnorm(m/2-1)*1i)
+  a[(m+1)/2 + 1] <- sqrt(lambda[(m+1)/2 + 1] / m) * rnorm(1)
+
+  U <- rnorm(n = (m+1)/2 - 1)
+  V <- rnorm(n = (m+1)/2 - 1)
+
+  a[2:((m+1) / 2)] <- sqrt(lambda[2:((m+1) / 2)] / (2 * m)) *
+    (U + V*1i)
+
+  a[(m+1):((m+1)/2 + 2)] <- sqrt(lambda[2:((m+1) / 2)] / (2 * m)) *
+    (U - V*1i)
 
   # Obtain the differenced process
   W <- Re(fft(a))
   # Obtain the process at levels - self similarity
   # Scale by (T/n)**2H if we want to simulate on [0, T] instead of [0, 1]
-  (grid_max / n)**(2 * H) * cumsum(W[1:n])
+  (grid_max / n)**(1 * H) * cumsum(W[1:n])
 
 }
 
@@ -86,9 +92,17 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum", sigma = NULL) {
   e1 <- c(1, 0)
   e2 <- c(0, 1)
 
-  if(alpha >= pi) {
+  if(H1 <= H2) {
+    alpha <- alpha + pi/2
+  }
+
+  while(alpha >= pi) {
     alpha <- alpha - pi
   }
+
+  # if(alpha >= pi) {
+  #   alpha <- alpha - pi
+  # }
 
   # Specify coordinates of other bases
   u1 <- c(cos(alpha), sin(alpha))
@@ -113,7 +127,11 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum", sigma = NULL) {
 
     # Extract the values of the fbm on the negative part of the domain by
     # the self-similarity property
-    B2_minus <- -B2_tilde[t2_idx_minus]
+    if(length(t2_idx_minus) == 0) {
+      B2_minus <- c()
+    } else {
+      B2_minus <- -B2_tilde[t2_idx_minus]
+    }
     # Extract the values of the positive part
     B2_plus <- B2_tilde[seq_len(length(t1) - length(B2_minus))]
     # Combine them to get the full process
