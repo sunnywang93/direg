@@ -205,8 +205,6 @@ fbm_sheet <- function(t_n, e_n, alpha, H1, H2, type = "sum", sigma = NULL) {
 }
 
 
-
-
 #' Simulates fractional brownian sheet with time-varying anisotropy
 #'
 #' Simulates a fractional brownian sheet on the two-dimensional canonical basis
@@ -332,7 +330,6 @@ fbm_sum <- function(H1, H2, n, endpoint) {
            ncol = n)
 
 }
-
 
 
 

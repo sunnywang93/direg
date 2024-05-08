@@ -12,19 +12,20 @@
 #' @param xout Vector, containing the evaluation points along one 1 dimension
 #' to compute the regularity. The cartesian product is taken to produce the
 #' 2D grid.
-#' @returns Numeric, containing the identified angle.
+#' @returns List, containing the identified angle and the associated estimated
+#' regularity averaged over the grid of spacings.
 #' @export
 
 identify_angle <- function(angles, X_list, dout, xout) {
 
   # Construct the two basis vectors
-  v1_cot <- c(cos(angles["alpha_cot"]), sin(angles["alpha_cot"]))
-  v1_tan <- c(cos(angles["alpha_tan"]), sin(angles["alpha_tan"]))
+  v1_cot <- c(cos(angles$alpha_acot), sin(angles$alpha_acot))
+  v1_tan <- c(cos(angles$alpha_atan), sin(angles$alpha_atan))
   # Construct the two reflected basis vectors
-  v1_cot_ref <- c(cos(pi - angles["alpha_cot"]),
-                  sin(pi - angles["alpha_cot"]))
-  v1_tan_ref <- c(cos(pi - angles["alpha_tan"]),
-                  sin(pi - angles["alpha_tan"]))
+  v1_cot_ref <- c(cos(pi - angles$alpha_acot),
+                  sin(pi - angles$alpha_acot))
+  v1_tan_ref <- c(cos(pi - angles$alpha_atan),
+                  sin(pi - angles$alpha_atan))
   # Compute the regularity along each basis vector along a grid of deltas
   noise <- estimate_sigma(X_list = X_list)
 
@@ -40,16 +41,27 @@ identify_angle <- function(angles, X_list, dout, xout) {
   # Compute the sum of regularities across the grid
   mode_idx <- which.max(Reduce('+', H_v))
 
+  # Compute the average of regularities
+  H_avg <- max(Reduce('+', H_v) / length(H_v))
+
   # Return the unique angle that maximises the regularity
   if(mode_idx == 1) {
-    angles["alpha_cot"]
+    alpha <- angles$alpha_acot
+    names(alpha) <- "alpha_acot"
   } else if(mode_idx == 2) {
-    pi - angles["alpha_cot"]
+    alpha <- pi - angles$alpha_acot
+    names(alpha) <- "alpha_acot_ref"
   } else if(mode_idx == 3) {
-    angles["alpha_tan"]
+    alpha <- angles$alpha_atan
+    names(alpha) <- "alpha_atan"
   } else {
-    pi - angles["alpha_tan"]
+    alpha <- pi - angles$alpha_atan
+    names(alpha) <- "alpha_atan_ref"
   }
+
+
+  list(alpha = alpha,
+       H_max = H_avg)
 
 }
 
@@ -78,11 +90,58 @@ estimate_angle <- function(X_list, xout, delta) {
   tan_alpha <- mean(H_list$theta_e2 / H_list$theta_e1,
                     na.rm = TRUE)**(1 / (2 * H_list$H))
 
-  c(g_hat = tan_alpha,
-    alpha_acot = pracma::acot(tan_alpha),
-    alpha_atan = atan(tan_alpha))
+  list(g_hat = tan_alpha,
+      alpha_acot = pracma::acot(tan_alpha),
+      alpha_atan = atan(tan_alpha),
+      H_min = H_list$H)
 
 }
+
+
+#' Compute the correction for estimating equation of angle
+#'
+#' Correction is based on the remainder term that arises from the estimating
+#' equation used for the directional regularity. Should only be used once to
+#' avoid introducing additional dependence between estimates.
+#'
+#' @param g_hat Numeric, the preliminary estimate of the tangent or cotangent of the angle.
+#' @param alpha_hat Numeric, the preliminary estimate of the identified angle.
+#' @param delta Numeric, the spacing used for estimation.
+#' @param Hmax Numeric, the maximum regularity.
+#' @param Hmin Numeric, the minimum regularity.
+#' @returns Numeric, the corrected angle.
+#' @export
+
+angle_correct <- function(g_hat, alpha_hat, delta, Hmax, Hmin) {
+
+  if(names(alpha_hat) == "alpha_acot" | names(alpha_hat) == "alpha_acot_ref") {
+    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*H_min) +
+      abs(cos(alpha_hat) * delta)^(2*H_max)
+    f_alpha_1 <- abs(sin(alpha_hat) * delta)^(2*H_min) / f_alpha_denom
+    f_alpha_2 <- (abs(tan(alpha_hat))^(2*H_min) *
+                    abs(sin(alpha_hat*delta))^(2*H_max)) / f_alpha_denom
+    f_alpha <- (f_alpha_1 + f_alpha_2)^(1/(2*H_min))
+  } else {
+    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*H_max) +
+      abs(cos(alpha_hat) * delta)^(2*H_min)
+    f_alpha_1 <- abs(cos(alpha_hat) * delta)^(2*H_min) / f_alpha_denom
+    f_alpha_2 <- (abs(pracma::cot(alpha_hat))^(2*H_min) *
+                    abs(cos(alpha_hat) * delta)^(2*H_max)) / f_alpha_denom
+    f_alpha <- (f_alpha_1 + f_alpha_2)^(2*H_min)
+  }
+
+  alpha_adj <- pracma::acot(g_hat / f_alpha)
+
+  # Use previous identification before correction to obtain the right alpha
+  if(names(alpha_hat) == "alpha_acot_ref" | names(alpha_hat) == "alpha_atan_ref") {
+    alpha_adj <- pi - alpha_adj
+  }
+
+  alpha_adj
+
+}
+
+
 
 #' Performs a change-of-basis for bivariate functional data
 #'

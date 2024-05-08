@@ -9,15 +9,14 @@ library(here)
 # Parameter settings
 N <- 100
 M <- 51
-H1 <- 0.5
-H2 <- 0.8
+H1 <- 0.8
+H2 <- 0.5
 rout <- 200
 alpha_set <- seq(from = pi/20,
                  to = pi,
                  length.out = 20)
 delta_c <- 0.25
 sigma <- 0.05
-xout <- seq(0, 1, length.out = M)
 delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
 
 param_cart <- expand.grid(alpha = alpha_set)
@@ -82,33 +81,61 @@ for(k in 1:nrow(param_cart)) {
                                  H1 = H1,
                                  H2 = H2,
                                  type = "sum",
-                                 sigma = sigma)
+                                 sigma = 0)
       )
-
-
       # Check the variance of the simulated process
       #image(Reduce('+', purrr::map(X_list_sum, ~.x^2)) / length(X_list_sum))
+
+      xout <- seq(0, 1, length.out = M)
       sheets_list_sum <- purrr::map(X_list_sum,
                                     ~list(t = xout,
                                           X = .x))
 
+      delta = (1 / sqrt(M)) * (1 + delta_c)
+
       alpha_sheet_sum <- estimate_angle(X_list = sheets_list_sum,
                                         xout = xout,
-                                        delta = (1 / sqrt(M)) * (1 + delta_c)
-      )
+                                        delta = delta)
 
+      # Construct the true g and associated risks for comparison
+      g_alpha_risk <- g_risk(alpha = alpha_true,
+                             H1 = H1,
+                             H2 = H2,
+                             delta = delta,
+                             ghat = alpha_sheet_sum$g_hat)
 
+      # Compute the risk for g and g_hat compared to cot or tan of true alpha
       alpha_unique_sum <- identify_angle(angles = alpha_sheet_sum,
                                          X_list = sheets_list_sum,
                                          dout = delta_grid,
                                          xout = xout)
 
+      # Perform correction for remainder term of g
+      alpha_hat_adj <- angle_correct(g_hat = alpha_sheet_sum$g_hat,
+                                     alpha_hat = alpha_unique_sum$alpha,
+                                     delta = delta,
+                                     Hmax = alpha_unique_sum$H_max,
+                                     Hmin = alpha_sheet_sum$H_min)
 
-      risk_sum <- abs(alpha_unique_sum - alpha_true)
+      # Perform iteration to ensure we compare to the right alpha (recall that
+      # true alpha is defined up to k*pi/2 additions)
+      while(alpha_true > pi) {
+        alpha_true <- alpha_true - pi
+      }
+
+      risk_sum <- abs(alpha_hat_adj - alpha_true)
 
       result <- list(
-        'alpha_hat_sum' = alpha_unique_sum,
-        'risk_sum' = risk_sum
+        'alpha_prelim_sum' = alpha_unique_sum$alpha,
+        'alpha_adj_sum' = alpha_hat_adj,
+        'risk_sum' = as.double(risk_sum),
+        'g_true' = as.double(g_alpha_risk$g_true),
+        'ghat_prelim' = as.double(alpha_sheet_sum$g_hat),
+        'ghat_risk' = as.double(g_alpha_risk$ghat_risk),
+        'g_risk' = as.double(g_alpha_risk$g_risk),
+        'ghat_rel' = as.double(g_alpha_risk$g_rel),
+        'H_max' = as.double(alpha_unique_sum$H_max),
+        'H_min' = as.double(alpha_sheet_sum$H_min)
       )
 
       save(result,
