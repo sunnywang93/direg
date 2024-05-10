@@ -7,19 +7,19 @@ library(ggplot2)
 library(here)
 
 # Parameter settings
-N <- 100
-M <- 51
+N <- c(100, 150)
+Mset <- c(51, 101)
 H1 <- 0.8
 H2 <- 0.5
-rout <- 200
-alpha_set <- seq(from = pi/20,
-                 to = pi,
-                 length.out = 20)
+rout <- 350
+alpha_set <- c(pi/30, pi/6, pi/5, pi/4, pi/3, pi/2 - pi/30, 2*pi/3, 3*pi/4, 5*pi/6)
 delta_c <- 0.25
-sigma <- 0.05
-delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
+sigma_set <- c(0, 0.025, 0.05, 0.1)
 
-param_cart <- expand.grid(alpha = alpha_set)
+
+param_cart <- expand.grid(M = Mset,
+                          alpha = alpha_set,
+                          sigma = sigma_set)
 # Set seeds to ensure reproducibility
 set.seed(123)
 
@@ -39,8 +39,8 @@ for(k in 1:nrow(param_cart)) {
   if(!dir.exists(inter_dir)) {
     dir.create(inter_dir)
   }
-  # Set number of cores to use - all available except 2
-  n_cores <- 50
+  # Set number of cores to use
+  n_cores <- 70
   # Create cluster nodes
   cl <- makeCluster(spec = n_cores)
   # Register cluster
@@ -53,6 +53,10 @@ for(k in 1:nrow(param_cart)) {
   opts <- list(progress = function(n) setTxtProgressBar(pb, n))
 
   alpha_true <- param_cart[k, "alpha"]
+  M <- param_cart[k, "M"]
+  delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
+  sigma <- param_cart[k, "sigma"]
+
 
   tic()
   foreach(i = 1:rout,
@@ -81,30 +85,25 @@ for(k in 1:nrow(param_cart)) {
                                  H1 = H1,
                                  H2 = H2,
                                  type = "sum",
-                                 sigma = 0)
+                                 sigma = sigma)
       )
       # Check the variance of the simulated process
       #image(Reduce('+', purrr::map(X_list_sum, ~.x^2)) / length(X_list_sum))
+      delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
 
       xout <- seq(0, 1, length.out = M)
       sheets_list_sum <- purrr::map(X_list_sum,
                                     ~list(t = xout,
                                           X = .x))
 
-      delta = (1 / sqrt(M)) * (1 + delta_c)
+      delta <- (1 / sqrt(M)) * (1 + delta_c)
 
+      # Estimation of angle
       alpha_sheet_sum <- estimate_angle(X_list = sheets_list_sum,
                                         xout = xout,
                                         delta = delta)
 
-      # Construct the true g and associated risks for comparison
-      g_alpha_risk <- g_risk(alpha = alpha_true,
-                             H1 = H1,
-                             H2 = H2,
-                             delta = delta,
-                             ghat = alpha_sheet_sum$g_hat)
-
-      # Compute the risk for g and g_hat compared to cot or tan of true alpha
+      #  Identification of angle
       alpha_unique_sum <- identify_angle(angles = alpha_sheet_sum,
                                          X_list = sheets_list_sum,
                                          dout = delta_grid,
@@ -117,25 +116,27 @@ for(k in 1:nrow(param_cart)) {
                                      Hmax = alpha_unique_sum$H_max,
                                      Hmin = alpha_sheet_sum$H_min)
 
+      # Compute true g for comparison purposes
+      g_true <- g_compute(alpha = alpha_true,
+                          H1 = H1,
+                          H2 = H2,
+                          delta = delta)
+
+
       # Perform iteration to ensure we compare to the right alpha (recall that
       # true alpha is defined up to k*pi/2 additions)
       while(alpha_true > pi) {
         alpha_true <- alpha_true - pi
       }
 
-      risk_sum <- abs(alpha_hat_adj - alpha_true)
 
       result <- list(
-        'alpha_prelim_sum' = alpha_unique_sum$alpha,
-        'alpha_adj_sum' = alpha_hat_adj,
-        'risk_sum' = as.double(risk_sum),
-        'g_true' = as.double(g_alpha_risk$g_true),
-        'ghat_prelim' = as.double(alpha_sheet_sum$g_hat),
-        'ghat_risk' = as.double(g_alpha_risk$ghat_risk),
-        'g_risk' = as.double(g_alpha_risk$g_risk),
-        'ghat_rel' = as.double(g_alpha_risk$g_rel),
-        'H_max' = as.double(alpha_unique_sum$H_max),
-        'H_min' = as.double(alpha_sheet_sum$H_min)
+        'alpha_hat' = alpha_unique_sum$alpha,
+        'alpha_hat_adj' = alpha_hat_adj$alpha_adj,
+        'ghat' = alpha_sheet_sum$g_hat,
+        'ghat_adj' = alpha_hat_adj$g_adj,
+        'g_true' = g_true,
+        'f_alpha' = alpha_hat_adj$f_alpha
       )
 
       save(result,
@@ -173,13 +174,10 @@ folder_path <- here("result")
 file_names <- list.files(path = folder_path, pattern = "\\.rds$",
                          full.names = TRUE)
 
-dat_list <- lapply(file_names, function(x) readRDS(x))
+dat_list <- lapply(file_names, function(x) readRDS(x)) |>
+  lapply(function(dat) t(sapply(dat, function(x) x)))
 
 names(dat_list) <- basename(file_names)
-
-dat_list <- lapply(dat_list, function(dat) {
-  t(sapply(dat, function(x) x))
-})
 
 library(dplyr)
 library(tidyr)
@@ -197,29 +195,29 @@ result_df <- bind_rows(
   })
 )
 
-result_df$alpha_hat_sum <- unlist(result_df$alpha_hat_sum)
-#result_df$alpha_hat_prod <- unlist(result_df$alpha_hat_prod)
-result_df$risk_sum <- unlist(result_df$risk_sum)
-#result_df$risk_prod <- unlist(result_df$risk_prod)
+for(i in 5:length(result_df)) {
+
+  result_df[[i]] <- unlist(result_df[[i]])
+
+}
 
 result_long <- result_df |>
-  pivot_longer(cols = c(alpha_hat_sum, risk_sum),
+  pivot_longer(cols = c(alpha_adj_sum, risk_sum),
                names_to = c(".value", "dgp"),
                names_pattern = "(.+)_(.+)",
                values_to = "value")
 
-result_long <- result_long |>
-  mutate(risk = risk - pi/2)
+# result_long <- result_long |>
+#   mutate(risk = risk - pi/2)
+#
+#
+# result_long <- result_long |>
+#   mutate(risk = abs(risk))
 
 
-result_long <- result_long |>
-  mutate(risk = abs(risk))
-
-
-boxplot_N100_M51_sum <- result_long |>
-  filter(dgp == "sum", N == 100, M == 51,
-         alpha_hat != 2.67) |>
-  ggplot(aes(x = as.factor(sigma), y = risk,
+boxplot_N100_M51_sum <- result_df |>
+  filter(N == 100, M == 51) |>
+  ggplot(aes(x = as.factor(sigma), y = risk_sum,
              fill = as.factor(alpha))) +
   geom_boxplot() +
   ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 51)$") +
@@ -230,6 +228,89 @@ boxplot_N100_M51_sum <- result_long |>
   scale_fill_grey(start = 0.3, end = 1) +
   theme(plot.title = element_text(hjust = 0.5))
 
+
+boxplot_N100_M101_sum <- result_df |>
+  filter(N == 100, M == 101) |>
+  ggplot(aes(x = as.factor(sigma), y = risk_sum,
+             fill = as.factor(alpha))) +
+  geom_boxplot() +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 101)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\alpha}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+test = result_df |>
+  filter(N == 100, M == 101) |>
+  mutate(risk_rel = risk_sum / abs(alpha_prelim_sum - alpha))
+
+lim_test <- filter(test,
+                   N == 100,
+                   M == 101) |>
+  pull(risk_rel) |>
+  quantile(c(.05, .95))
+
+test |>
+  filter(N == 100, M == 101) |>
+  mutate(risk_rel = risk_sum / abs(alpha_prelim_sum - alpha)) |>
+  ggplot(aes(x = as.factor(sigma), y = risk_rel,
+             fill = as.factor(alpha))) +
+  geom_boxplot(outlier.shape = NA) +
+  scale_y_continuous(limits = lim_test) +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 101)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\alpha}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+test |>
+  filter(N == 100, M == 101) |>
+  ggplot(aes(x = as.factor(sigma), y = abs(alpha_prelim_sum - alpha),
+             fill = as.factor(alpha))) +
+  geom_boxplot() +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 101)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\alpha}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+boxplot_N100_M101_sum_ghat <- result_df |>
+  filter(N == 100, M == 101) |>
+  ggplot(aes(x = as.factor(sigma), y = ghat_risk,
+             fill = as.factor(alpha))) +
+  geom_boxplot() +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 101)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\widehat g_{\\alpha}}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+boxplot_N100_M51_sum_ghat <- result_df |>
+  filter(N == 100, M == 51) |>
+  ggplot(aes(x = as.factor(sigma), y = ghat_risk,
+             fill = as.factor(alpha))) +
+  geom_boxplot() +
+  ggtitle("Boxplots $f_1 = B_1 + B2 (N = 100, M = 51)$") +
+  xlab("$\\sigma$") +
+  ylab("$\\mathcal{R}_{\\widehat g_{\\alpha}}$") +
+  labs(fill = "$\\alpha$") +
+  theme_minimal() +
+  scale_fill_grey(start = 0.3, end = 1) +
+  theme(plot.title = element_text(hjust = 0.5))
 
 library(tikzDevice)
 

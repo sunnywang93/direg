@@ -26,7 +26,8 @@ to compute the regularity. The cartesian product is taken to produce the
 2D grid.}
 }
 \value{
-Numeric, containing the identified angle.
+List, containing the identified angle and the associated estimated
+regularity averaged over the grid of spacings.
 }
 \description{
 Find the unique angle between the two basis vectors that provides the

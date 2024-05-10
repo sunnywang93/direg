@@ -67,7 +67,8 @@ fbm_fft <- function(H, n, grid_max) {
 #'
 #' Simulates a fractional brownian sheet on the two-dimensional canonical basis
 #' based on the product of two fractional brownian motions (fbms) on another basis.
-#' The individual fbms are simulated using fast fourier transforms for increased
+#' In order to avoid confusions with interpretation, `H1` should always be greater
+#' than `H2`. The individual fbms are simulated using fast fourier transforms for increased
 #' speed; see `fbm_fft`.
 #'
 

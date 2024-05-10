@@ -32,6 +32,7 @@ observed on the canonical bases.
 \description{
 Simulates a fractional brownian sheet on the two-dimensional canonical basis
 based on the product of two fractional brownian motions (fbms) on another basis.
-The individual fbms are simulated using fast fourier transforms for increased
+In order to avoid confusions with interpretation, \code{H1} should always be greater
+than \code{H2}. The individual fbms are simulated using fast fourier transforms for increased
 speed; see \code{fbm_fft}.
 }

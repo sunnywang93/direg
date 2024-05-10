@@ -109,35 +109,47 @@ estimate_angle <- function(X_list, xout, delta) {
 #' @param delta Numeric, the spacing used for estimation.
 #' @param Hmax Numeric, the maximum regularity.
 #' @param Hmin Numeric, the minimum regularity.
-#' @returns Numeric, the corrected angle.
+#' @returns List, containing the corrected angle, corrected function of angle and
+#' the correction term.
 #' @export
 
 angle_correct <- function(g_hat, alpha_hat, delta, Hmax, Hmin) {
 
   if(names(alpha_hat) == "alpha_acot" | names(alpha_hat) == "alpha_acot_ref") {
-    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*H_min) +
-      abs(cos(alpha_hat) * delta)^(2*H_max)
-    f_alpha_1 <- abs(sin(alpha_hat) * delta)^(2*H_min) / f_alpha_denom
-    f_alpha_2 <- (abs(tan(alpha_hat))^(2*H_min) *
-                    abs(sin(alpha_hat*delta))^(2*H_max)) / f_alpha_denom
-    f_alpha <- (f_alpha_1 + f_alpha_2)^(1/(2*H_min))
+    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*Hmin) +
+      abs(cos(alpha_hat) * delta)^(2*Hmax)
+    f_alpha_1 <- abs(sin(alpha_hat) * delta)^(2*Hmin) / f_alpha_denom
+    f_alpha_2 <- (abs(tan(alpha_hat))^(2*Hmin) *
+                    abs(sin(alpha_hat*delta))^(2*Hmax)) / f_alpha_denom
+    f_alpha <- (f_alpha_1 + f_alpha_2)^(1/(2*Hmin))
   } else {
-    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*H_max) +
-      abs(cos(alpha_hat) * delta)^(2*H_min)
-    f_alpha_1 <- abs(cos(alpha_hat) * delta)^(2*H_min) / f_alpha_denom
-    f_alpha_2 <- (abs(pracma::cot(alpha_hat))^(2*H_min) *
-                    abs(cos(alpha_hat) * delta)^(2*H_max)) / f_alpha_denom
-    f_alpha <- (f_alpha_1 + f_alpha_2)^(2*H_min)
+    f_alpha_denom <- abs(sin(alpha_hat) * delta)^(2*Hmax) +
+      abs(cos(alpha_hat) * delta)^(2*Hmin)
+    f_alpha_1 <- abs(cos(alpha_hat) * delta)^(2*Hmin) / f_alpha_denom
+    f_alpha_2 <- (abs(pracma::cot(alpha_hat))^(2*Hmin) *
+                    abs(cos(alpha_hat) * delta)^(2*Hmax)) / f_alpha_denom
+    f_alpha <- (f_alpha_1 + f_alpha_2)^(2*Hmin)
   }
 
-  alpha_adj <- pracma::acot(g_hat / f_alpha)
+  g_adj <- g_hat / f_alpha
+
+  if(names(alpha_hat) == "alpha_acot" | names(alpha_hat) == "alpha_acot_ref") {
+    alpha_adj <- pracma::acot(g_adj)
+  } else {
+    alpha_adj <- atan(g_adj)
+  }
+
 
   # Use previous identification before correction to obtain the right alpha
   if(names(alpha_hat) == "alpha_acot_ref" | names(alpha_hat) == "alpha_atan_ref") {
     alpha_adj <- pi - alpha_adj
   }
 
-  alpha_adj
+  list(
+    "g_adj" = as.double(g_adj),
+    "alpha_adj" = alpha_adj,
+    "f_alpha" = f_alpha
+  )
 
 }
 
