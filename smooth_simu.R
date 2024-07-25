@@ -14,10 +14,10 @@ sigma_set <- c(0, 0.05, 0.1)
 rout <- 250
 H1 <- 0.8
 H2 <- 0.5
-delta_c <- 0.25
+#delta_c <- 0.25
 xout <- seq(0, 1, length.out = M0)
 delta_grid <- seq(1/sqrt(M0), 0.4, length.out = 15)
-delta_learn <- (1 / sqrt(M0)) * (1 + delta_c)
+delta_learn <- (1 / sqrt(M0)) #* (1 + delta_c)
 
 
 # Parameter settings for online set
@@ -239,7 +239,7 @@ for(k in 1:nrow(param_cart)) {
                           sigma = sigma_hat,
                           k = kappa,
                           M0 = M0_obs^2,
-                          rate = FALSE)
+                          rate = TRUE)
 
       # Compute smoothing bandwidth along canonical basis (w/o directional reg)
       h_star_iso <- bw_smooth(H1 = H_iso[1],
@@ -249,7 +249,7 @@ for(k in 1:nrow(param_cart)) {
                               sigma = sigma_hat,
                               k = kappa,
                               M0 = M0_obs^2,
-                              rate = FALSE)
+                              rate = TRUE)
 
       # Smooth surfaces
       Y_smoothed <- ksmooth_bi(Y_list = Y_new_noisy,
@@ -341,13 +341,30 @@ result_df$risk_iso <- unlist(result_df$risk_iso)
 result_df$risk_rel <- unlist(result_df$risk_rel)
 
 result_df |>
-  filter(sigma != 0.1) |>
+  filter(sigma == 0.1) |>
 ggplot(
-       aes(x = as.factor(sigma), y = risk_rel, fill = as.factor(alpha))) +
-  geom_boxplot()
+       aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
+  geom_boxplot() +
+  geom_hline(yintercept = 1, col = "red")
 
+result_df |>
+  filter(alpha == 1.47, sigma == 0) |>
+  select(risk_rel) |>
+  boxplot()
 
+result_df |>
+  filter(sigma == 0.05) |>
+  ggplot(
+    aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
+  geom_boxplot() +
+  geom_hline(yintercept = 1, col = "red")
 
+result_df |>
+  filter(sigma == 0) |>
+  ggplot(
+    aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
+  geom_boxplot() +
+  geom_hline(yintercept = 1, col = "red")
 
 
 

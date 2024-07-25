@@ -5,45 +5,17 @@
 #'
 #' @param H1 Numeric, containing the Hölder regularity along the first dimension.
 #' @param H2 Numeric, containing the Hölder regularity along the second dimension.
-#' @param L1 Numeric, containing the Hölder constant along the first dimension.
-#' @param L2 Numeric, containing the Hölder constant along the second dimension.
-#' @param sigma Numeric, containing the noise level.
-#' @param k Numeric, constant for the lower bound of the kernel.
 #' @param M0 Numeric, number of points along each curve.
 #' @returns Vector, containing the estimated bandwidths along each dimension.
 #' @export
 
-bw_smooth <- function(H1, H2, L1, L2, sigma, k, M0, rate = TRUE) {
+bw_smooth <- function(H1, H2, M0, rate = TRUE) {
 
   rate1 <- M0**(-H2 / (2*H2*H1 + H1 + H2))
-
   rate2 <- M0**(-H1 / (2*H2*H1 + H1 + H2))
-
-  if(rate) {
-    h1 <- rate1
-    h2 <- rate2
-    c(h1 = h1, h2 = h2)
-  } else {
-
-    Lambda1_k1 <- ((k^2 * sigma^2) / (4 * L1 * H1))**(2*H2 + 1)
-
-    Lambda1_k2 <- (4 * L2 * H2) / (k^2 * sigma^2)
-
-    Lambda1 <- (Lambda1_k1 * Lambda1_k2)**(1 / (4*H1*H2 + 2*H1 + 2*H2))
-
-    h1 <- Lambda1 * rate1
-
-    Lambda2_k1 <- ((k^2 * sigma^2) / (4 * L2 * H2))**(2*H1 + 1)
-
-    Lambda2_k2 <- (4 * L1 * H1) / (k^2 * sigma^2)
-
-    Lambda2 <- (Lambda2_k1 * Lambda2_k2)**(1 / (4*H1*H2 + 2*H1 + 2*H2))
-
-    h2 <- Lambda2 * rate2
-
-    c(h1 = h1, h2 = h2)
-
-  }
+  h1 <- rate1
+  h2 <- rate2
+  c(h1 = h1, h2 = h2)
 
 }
 
