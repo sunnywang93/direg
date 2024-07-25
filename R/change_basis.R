@@ -61,7 +61,8 @@ identify_angle <- function(angles, X_list, dout, xout) {
 
 
   list(alpha = alpha,
-       H_max = H_avg)
+       H_max = H_avg,
+       sigma = noise)
 
 }
 
@@ -128,7 +129,7 @@ angle_correct <- function(g_hat, alpha_hat, delta, Hmax, Hmin) {
     f_alpha_1 <- abs(cos(alpha_hat) * delta)^(2*Hmin) / f_alpha_denom
     f_alpha_2 <- (abs(pracma::cot(alpha_hat))^(2*Hmin) *
                     abs(cos(alpha_hat) * delta)^(2*Hmax)) / f_alpha_denom
-    f_alpha <- (f_alpha_1 + f_alpha_2)^(2*Hmin)
+    f_alpha <- (f_alpha_1 + f_alpha_2)^(1/(2*Hmin))
   }
 
   g_adj <- g_hat / f_alpha
@@ -150,6 +151,60 @@ angle_correct <- function(g_hat, alpha_hat, delta, Hmax, Hmin) {
     "alpha_adj" = alpha_adj,
     "f_alpha" = f_alpha
   )
+
+}
+
+#' Computes the thresholding parameter used for anisotropic detection
+#'
+#' @param n_dout Numeric, number of grid points in the spacing used for
+#' identification.
+#' @param delta Numeric, indicating the spacing.
+#' @param M0 Numeric, number of observed points along each surface.
+#' @param N Numeric, number of surfaces.
+#' @param H_min Numeric, the estimated minimum regularity along the dimensions.
+#' @param c_tau Numeric, a constant which accompanies the rate.
+#' @returns Numeric, indicating the thresholding constant.
+#' @export
+
+thresh_tau <- function(n_dout, delta, M0, N, H_min, c_tau) {
+
+  iden_rate <- n_dout / min(sqrt(N), M0^H_min)
+
+  g_rate <- abs(log(delta)) / (sqrt(N) * delta^(3*H_min))
+
+  intp_rate <- M0^(-H_min)
+
+  H_rate <- delta^(-H_min) * N^(-1/2)
+
+  alpha_rate <- max(iden_rate, g_rate, intp_rate)
+
+  (alpha_rate + H_rate) * c_tau
+
+
+}
+
+#' Determines if process is anisotropic based on thresholding
+#'
+#' @param H_min Numeric, indicating the estimated minimum regularity.
+#' @param H_max Numeric, indicating the estimated maximum regularity.
+#' @param tau Numeric, indicating the thresholding constant.
+#' @returns Numeric, with TRUE indicating anisotropy and FALSE otherwise.
+#' @export
+
+thresh_angle <- function(H_min, H_max, tau) {
+
+  if(abs(H_min - H_max) >= tau) {
+    out <- 1
+    print(as.logical(out))
+    message("Process is anisotropic!")
+    invisible(as.logical(out))
+  } else {
+    out <- 0
+    print(as.logical(out))
+    message("Process is isotropic!")
+    invisible(as.logical(out))
+  }
+
 
 }
 
