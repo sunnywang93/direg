@@ -9,7 +9,7 @@
 #' @returns Vector, containing the estimated bandwidths along each dimension.
 #' @export
 
-bw_smooth <- function(H1, H2, M0, rate = TRUE) {
+bw_smooth <- function(H1, H2, M0) {
 
   rate1 <- M0**(-H2 / (2*H2*H1 + H1 + H2))
   rate2 <- M0**(-H1 / (2*H2*H1 + H1 + H2))

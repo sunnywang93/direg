@@ -4,20 +4,12 @@
 \alias{bw_smooth}
 \title{Calculate plug-in bandwidth for adaptive bivariate kernel smoothing}
 \usage{
-bw_smooth(H1, H2, L1, L2, sigma, k, M0, rate = TRUE)
+bw_smooth(H1, H2, M0)
 }
 \arguments{
 \item{H1}{Numeric, containing the Hölder regularity along the first dimension.}
 
 \item{H2}{Numeric, containing the Hölder regularity along the second dimension.}
-
-\item{L1}{Numeric, containing the Hölder constant along the first dimension.}
-
-\item{L2}{Numeric, containing the Hölder constant along the second dimension.}
-
-\item{sigma}{Numeric, containing the noise level.}
-
-\item{k}{Numeric, constant for the lower bound of the kernel.}
 
 \item{M0}{Numeric, number of points along each curve.}
 }
