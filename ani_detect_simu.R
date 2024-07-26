@@ -22,16 +22,9 @@ set.seed(123)
 seeds <- sample.int(10000,
                     size = rout)
 
-inter_dir <- here('intermediate')
 result_folder <- here('result')
 if(!dir.exists(result_folder)) {
   dir.create(result_folder)
-}
-
-
-
-if(!dir.exists(inter_dir)) {
-  dir.create(inter_dir)
 }
 
 n_cores <- 50

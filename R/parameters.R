@@ -139,7 +139,7 @@ H_sheets_dir <- function(X_list, tout, delta, base_list, sigma) {
                                )
                        )
 
-  purrr::map_dbl(H_hat, ~mean(pmax(.x, 0.1), na.rm = TRUE))
+  purrr::map_dbl(H_hat, ~mean(pmin(pmax(.x, 0.1), 1), na.rm = TRUE))
 
 }
 

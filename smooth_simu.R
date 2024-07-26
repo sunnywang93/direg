@@ -1,23 +1,22 @@
 library(direg)
 library(foreach)
 library(parallel)
-library(tictoc)
-library(snow)
+library(doSNOW)
 library(ggplot2)
 library(here)
 
 
-alpha_set <- c(pi/30, pi/6, pi/5, pi/4, pi/3, pi/2 - pi/30)
+
+alpha_set <- c(pi/30, pi/6, pi/4, pi/3, pi/2 - pi/30)
 N0 <- 120
 M0 <- 101
 sigma_set <- c(0, 0.05, 0.1)
-rout <- 250
+rout <- 200
 H1 <- 0.8
 H2 <- 0.5
-#delta_c <- 0.25
 xout <- seq(0, 1, length.out = M0)
 delta_grid <- seq(1/sqrt(M0), 0.4, length.out = 15)
-delta_learn <- (1 / sqrt(M0)) #* (1 + delta_c)
+delta_learn <- (1 / sqrt(M0))
 
 
 # Parameter settings for online set
@@ -25,31 +24,32 @@ M0_new_dense <- 151
 M0_obs <- 101
 xout_dense <- seq(0, 1, length.out = M0_new_dense)
 xout_obs <- seq(0, 1, length.out = M0_obs)
-kappa <- (3/ (4 * 0.99))^2
 
 # All configurations in loop
 param_cart <- expand.grid(alpha = alpha_set,
                           sigma = sigma_set)
 
 
-# Set seeds - one for learning set and other for replications of
-# online set
-seeds <- sample.int(10000, size = rout)
 result_folder <- here('result_smooth')
 if(!dir.exists(result_folder)) {
   dir.create(result_folder)
 }
 
-inter_dir <- here('intermediate')
+set.seed(1234)
+seeds <- sample.int(10000, size = rout)
 
+# Function for learning set generation and estimation
+# For parallelization purposes
 
-for(k in 1:nrow(param_cart)) {
-
+learn_simu <- function(k) {
+  # Set varying parameters
   alpha <- param_cart[k, "alpha"]
   sigma <- param_cart[k, "sigma"]
 
-    # Generate learning set
+  # Generate seeds for learning and online set
   set.seed(1234)
+
+  # Generate learning set
   Y_sum_learn <- purrr::map(seq_len(N0),
                             ~fbm_sheet(
                               t_n = M0,
@@ -63,11 +63,6 @@ for(k in 1:nrow(param_cart)) {
   ) |>
     purrr::map(~list(t = xout,
                      X = .x))
-
-  # Check variance
-  # image(
-  #   Reduce('+', purrr::map(Y_sum_learn, ~.x$X^2)) / length(Y_sum_learn)
-  # )
 
   # Estimate & identify angle from the learning set
   g_hat_sum <- estimate_angle(X_list = Y_sum_learn,
@@ -86,8 +81,6 @@ for(k in 1:nrow(param_cart)) {
                                      Hmax = alpha_hat_sum$H_max,
                                      Hmin = g_hat_sum$H_min)
 
-  # Estimate other parameters required for smoothing
-
   # Build anisotropic basis vectors
   u1 <- unname(c(cos(alpha_hat_sum_adj$alpha), sin(alpha_hat_sum_adj$alpha)))
   u2 <- unname(c(-sin(alpha_hat_sum_adj$alpha), cos(alpha_hat_sum_adj$alpha)))
@@ -99,20 +92,6 @@ for(k in 1:nrow(param_cart)) {
                         delta = delta_learn,
                         base_list = list(u1, u2),
                         sigma = sigma_hat)
-
-
-  L_ani <- c(L_sheets(X_list = Y_sum_learn,
-                      xout = xout,
-                      delta = delta_learn,
-                      v = u1,
-                      Hv = H_ani[1]),
-             L_sheets(X_list = Y_sum_learn,
-                      xout = xout,
-                      delta = delta_learn,
-                      v = u2,
-                      Hv = H_ani[2])
-  )
-
 
   # Compute rotation matrix
   R_alpha <- matrix(c(cos(alpha_hat_sum_adj$alpha_adj),
@@ -132,239 +111,181 @@ for(k in 1:nrow(param_cart)) {
                         base_list = list(e1, e2),
                         sigma = sigma_hat)
 
-  L_iso <- c(L_sheets(X_list = Y_sum_learn,
-                      xout = xout,
-                      delta = delta_learn,
-                      v = e1,
-                      Hv = H_iso[1]),
-             L_sheets(X_list = Y_sum_learn,
-                      xout = xout,
-                      delta = delta_learn,
-                      v = e2,
-                      Hv = H_iso[2])
-  )
+  list('R_alpha' = R_alpha,
+       'H_ani' = H_ani,
+       'H_iso' = H_iso,
+       'alpha' = alpha,
+       'sigma' = sigma)
 
-
-  if(!dir.exists(inter_dir)) {
-    dir.create(inter_dir)
-  }
-  # Set number of cores to use - all available except 2
-  n_cores <- 50
-
-  # Create cluster nodes
-  cl <- snow::makeCluster(spec = n_cores)
-  # Register cluster
-  doSNOW::registerDoSNOW(cl)
-  # Create progress bar
-  pb <- txtProgressBar(min = 1,
-                       max = rout,
-                       style = 3)
-
-  opts <- list(progress = function(n) setTxtProgressBar(pb, n))
-
-  tic()
-  foreach(i = 1:rout,
-          .packages = c("direg", "parallel", "snow"),
-          .options.snow = opts) %dopar%
-    {
-
-      each_filename <- paste0('result_',
-                              as.character(i),
-                              '.rda')
-
-      each_filepath <- file.path(inter_dir,
-                                 each_filename)
-
-      if (file.exists(each_filepath)) {
-        next
-      }
-
-      set.seed(seeds[i])
-      # Generate true curve on a dense grid, first without noise, then
-      # manually add noise to the discretised ones
-
-      # First without noise
-      Y_new_true <- purrr::map(seq_len(1),
-                               ~fbm_sheet(
-                                 t_n = M0_new_dense,
-                                 e_n = M0_new_dense,
-                                 alpha = alpha,
-                                 H1 = H1,
-                                 H2 = H2,
-                                 type = "sum",
-                                 sigma = 0)
-      ) |>
-        purrr::map(~list(t = xout_dense,
-                         X = .x))
-
-      # Discretise the true surface with interpolation
-      tobs <- expand.grid(t1 = xout_obs,
-                          t2 = xout_obs)
-
-      Y_new_obs <- purrr::map(Y_new_true,
-                              ~pracma::interp2(x = .x$t,
-                                               y = .x$t,
-                                               Z = .x$X,
-                                               xp = tobs[, 2],
-                                               yp = tobs[, 1],
-                                               method = "nearest") |>
-                                matrix(nrow = M0_obs,
-                                       ncol = M0_obs)
-      )
-
-      # Now add some noise
-      Y_new_noisy <- purrr::map(Y_new_obs,
-                                ~list(t = xout_obs,
-                                      X = .x + rnorm(n = M0_obs^2,
-                                                     sd = sigma)
-                                )
-      )
-
-      # Now construct the smoothing grid - we need to transform it onto the
-      # anisotropic basis!
-      tout <- expand.grid(t1 = xout_dense,
-                          t2 = xout_dense)
-
-      # Rotation on the smoothing grid
-      tout_rot <- t(apply(tout, 1, function(x) crossprod(t(R_alpha), x)))
-
-      # Perform rotation on the observed grid
-      tobs_rot <- t(apply(tobs, 1, function(x) crossprod(t(R_alpha), x)))
-
-      # Compute optimal smoothing bandwidth
-      h_star <- bw_smooth(H1 = H_ani[1],
-                          H2 = H_ani[2],
-                          L1 = L_ani[1],
-                          L2 = L_ani[2],
-                          sigma = sigma_hat,
-                          k = kappa,
-                          M0 = M0_obs^2,
-                          rate = TRUE)
-
-      # Compute smoothing bandwidth along canonical basis (w/o directional reg)
-      h_star_iso <- bw_smooth(H1 = H_iso[1],
-                              H2 = H_iso[2],
-                              L1 = L_iso[1],
-                              L2 = L_iso[2],
-                              sigma = sigma_hat,
-                              k = kappa,
-                              M0 = M0_obs^2,
-                              rate = TRUE)
-
-      # Smooth surfaces
-      Y_smoothed <- ksmooth_bi(Y_list = Y_new_noisy,
-                               bw_vec = h_star,
-                               tobs = tobs_rot,
-                               tout = tout_rot)
-
-      Y_smoothed_iso <- ksmooth_bi(Y_list = Y_new_noisy,
-                                   bw_vec = h_star_iso,
-                                   tobs = tobs,
-                                   tout = tout)
-
-      # Compute the risk
-      risk_ani <- purrr::map2_dbl(Y_new_true, Y_smoothed,
-                                  ~mean(abs(.x$X - .y)))
-
-
-      risk_iso <- purrr::map2_dbl(Y_new_true, Y_smoothed_iso,
-                                  ~mean(abs(.x$X - .y)))
-
-      risk_rel <- risk_ani / risk_iso
-
-
-      result <- list(
-        'risk_ani' = as.double(risk_ani),
-        'risk_iso' = as.double(risk_iso),
-        'risk_rel' = as.double(risk_rel),
-        'h_ani' = h_star,
-        'h_iso' = h_star_iso
-      )
-
-      save(result,
-           file = each_filepath)
-
-    }
-
-
-snow::stopCluster(cl)
-closeAllConnections()
-toc()
-
-fls <- list.files(inter_dir,
-                  pattern = ".rda")
-
-
-result_list <- lapply(fls,
-                      function(x) get(eval(load(paste0(inter_dir, '/', x
-                      )))))
-
-
-saveRDS(result_list,
-        file = paste0(result_folder,
-                      "/alpha_", round(alpha, 2),
-                      "_", "sigma_", sigma,
-                      ".rds")
-        )
-
-
-fs::file_delete(inter_dir)
 
 }
 
-file_names <- list.files(path = result_folder, pattern = "\\.rds$",
-                         full.names = TRUE)
+# Set number of cores to use
+n_cores <- 40
+# Create cluster nodes
+cl <- makeCluster(spec = n_cores)
+# Register cluster
+registerDoSNOW(cl)
 
-dat_list <- lapply(file_names, function(x) readRDS(x)) |>
-  lapply(function(dat) t(sapply(dat, function(x) x)))
 
-names(dat_list) <- basename(file_names)
+result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
+  # Run learning set operations and obtain results
+  learn_list <- learn_simu(k = k)
+
+  foreach(i = 1:rout,
+          .packages = c("direg", "parallel", "snow"),
+          .combine = 'c',
+          .multicombine = TRUE)  %dopar% {
+
+    set.seed(seeds[i])
+
+    # Generate true curve on a dense grid, first without noise, then
+    # manually add noise to the discretised ones
+
+    # First without noise
+    Y_new_true <- purrr::map(seq_len(1),
+                             ~fbm_sheet(
+                               t_n = M0_new_dense,
+                               e_n = M0_new_dense,
+                               alpha = learn_list$alpha,
+                               H1 = H1,
+                               H2 = H2,
+                               type = "sum",
+                               sigma = 0)
+    ) |>
+      purrr::map(~list(t = xout_dense,
+                       X = .x))
+
+    # Discretise the true surface with interpolation
+    tobs <- expand.grid(t1 = xout_obs,
+                        t2 = xout_obs)
+
+    Y_new_obs <- purrr::map(Y_new_true,
+                            ~pracma::interp2(x = .x$t,
+                                             y = .x$t,
+                                             Z = .x$X,
+                                             xp = tobs[, 2],
+                                             yp = tobs[, 1],
+                                             method = "nearest") |>
+                              matrix(nrow = M0_obs,
+                                     ncol = M0_obs)
+    )
+
+    # Now add some noise
+    Y_new_noisy <- purrr::map(Y_new_obs,
+                              ~list(t = xout_obs,
+                                    X = .x + rnorm(n = M0_obs^2,
+                                                   sd = learn_list$sigma)
+                              )
+    )
+
+    # Now construct the smoothing grid - we need to transform it onto the
+    # anisotropic basis!
+    tout <- expand.grid(t1 = xout_dense,
+                        t2 = xout_dense)
+
+    # Rotation on the smoothing grid
+    tout_rot <- t(apply(tout, 1,
+                        function(x) crossprod(t(learn_list$R_alpha), x)))
+
+    # Perform rotation on the observed grid
+    tobs_rot <- t(apply(tobs, 1,
+                        function(x) crossprod(t(learn_list$R_alpha), x)))
+
+    # Compute optimal smoothing bandwidth
+    h_star <- bw_smooth(H1 = learn_list$H_ani[1],
+                        H2 = learn_list$H_ani[2],
+                        M0 = M0_obs^2)
+
+    # Compute smoothing bandwidth along canonical basis (w/o directional reg)
+    h_star_iso <- bw_smooth(H1 = learn_list$H_iso[1],
+                            H2 = learn_list$H_iso[2],
+                            M0 = M0_obs^2)
+
+    # Smooth surfaces
+    Y_smoothed <- ksmooth_bi(Y_list = Y_new_noisy,
+                             bw_vec = h_star,
+                             tobs = tobs_rot,
+                             tout = tout_rot)
+
+    Y_smoothed_iso <- ksmooth_bi(Y_list = Y_new_noisy,
+                                 bw_vec = h_star_iso,
+                                 tobs = tobs,
+                                 tout = tout)
+
+    # Compute the risk
+    risk_ani <- purrr::map2_dbl(Y_new_true, Y_smoothed,
+                                ~mean(abs(.x$X - .y)))
 
 
+    risk_iso <- purrr::map2_dbl(Y_new_true, Y_smoothed_iso,
+                                ~mean(abs(.x$X - .y)))
+
+    risk_rel <- risk_ani / risk_iso
+
+    list(
+      list('risk_ani' = risk_ani,
+           'risk_iso' = risk_iso,
+           'risk_rel' = risk_rel,
+           'h1_ani' = h_star[1],
+           'h2_ani' = h_star[2],
+           'h1_iso' = h_star_iso[1],
+           'h2_iso' = h_star_iso[2])
+    )
+
+  }
+
+}
+
+saveRDS(result_list,
+        file = paste0(here(), "/result_smooth/result_list.rds"))
+
+
+# analysis of results =========================================================
 library(dplyr)
 library(tidyr)
+library(stringr)
+
+list_names <- purrr::map_chr(seq_len(nrow(param_cart)),
+                             ~paste0("alpha",
+                                     round(param_cart[.x, "alpha"], 2),
+                                     "_sigma",
+                                     param_cart[.x, "sigma"])
+                             )
+
+names(result_list) <- list_names
+
 result_df <- bind_rows(
-  lapply(names(dat_list), function(name) {
-    mat <- dat_list[[name]]
-    name_parts <- unlist(strsplit(name, "_"))
-    data.frame(
-      alpha = as.numeric(sub("alpha([0-9.]+).*", "\\1", name_parts[2])),
-      sigma = as.numeric(sub(".rds", "\\1", name_parts[4])),
-      mat
+  lapply(seq_along(result_list), function(result_id) {
+    df_result <- as.data.frame(do.call(rbind, result_list[[result_id]]))
+    as.data.frame(
+      cbind(alpha = as.numeric(str_extract(list_names[result_id],
+                                           "(?<=alpha)[0-9.]+")),
+            sigma = as.numeric(str_extract(list_names[result_id],
+                                           "(?<=sigma)[0-9.]+")),
+            risk_ani = unlist(df_result$risk_ani),
+            risk_iso = unlist(df_result$risk_iso),
+            risk_rel = unlist(df_result$risk_rel),
+            h1_ani = purrr::map_dbl(df_result$h_ani, ~.x[1]),
+            h2_ani = purrr::map_dbl(df_result$h_ani, ~.x[2]),
+            h1_iso = purrr::map_dbl(df_result$h_iso, ~.x[1]),
+            h2_iso = purrr::map_dbl(df_result$h_iso, ~.x[2]))
     )
   })
-) |>
-select(-c(h_ani, h_iso))
-
-result_df$risk_ani <- unlist(result_df$risk_ani)
-result_df$risk_iso <- unlist(result_df$risk_iso)
-result_df$risk_rel <- unlist(result_df$risk_rel)
+)
 
 result_df |>
-  filter(sigma == 0.1) |>
-ggplot(
-       aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
-  geom_boxplot() +
-  geom_hline(yintercept = 1, col = "red")
-
-result_df |>
-  filter(alpha == 1.47, sigma == 0) |>
-  select(risk_rel) |>
-  boxplot()
-
-result_df |>
-  filter(sigma == 0.05) |>
+  select(alpha, sigma, risk_rel) |>
   ggplot(
-    aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
+    aes(x = as.factor(sigma), y = risk_rel, fill = as.factor(alpha))
+  ) +
   geom_boxplot() +
   geom_hline(yintercept = 1, col = "red")
+
 
 result_df |>
-  filter(sigma == 0) |>
-  ggplot(
-    aes(x = as.factor(alpha), y = risk_rel, fill = as.factor(alpha))) +
-  geom_boxplot() +
-  geom_hline(yintercept = 1, col = "red")
-
+  mutate(log_risk = log(risk_ani / risk_iso)) |>
+  ggplot(aes(x = as.factor(sigma), y = log_risk, fill = as.factor(alpha))) +
+  geom_boxplot()
 
 
