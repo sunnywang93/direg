@@ -33,8 +33,10 @@ ani_detect <- function(X_list, beta_n, g_adj, alpha_adj,
                                             delta = delta,
                                             base_list = list(c(cos(.x), sin(.x))),
                                             sigma = sigma))
-
-  epsilon_beta <- mean(abs(outer(Hmin_beta, Hmin_beta, FUN = "-")))
+  # Split into odd and even pairs to avoid dependence in averaging
+  Hmin_odd <- Hmin_beta[2 * seq_len(floor(beta_n/2)) - 1]
+  Hmin_even <- Hmin_beta[2 * seq_len(floor(beta_n/2))]
+  epsilon_beta <- mean(abs(Hmin_odd - Hmin_even), na.rm = TRUE)
 
   if(abs(H_max - H_min) > epsilon_beta + log(M0)^(-H_pow)) {
     message("Data is anisotropic")
@@ -46,5 +48,9 @@ ani_detect <- function(X_list, beta_n, g_adj, alpha_adj,
 
 
 }
+
+
+
+
 
 

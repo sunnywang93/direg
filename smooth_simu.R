@@ -121,7 +121,7 @@ learn_simu <- function(k) {
 }
 
 # Set number of cores to use
-n_cores <- 40
+n_cores <- 50
 # Create cluster nodes
 cl <- makeCluster(spec = n_cores)
 # Register cluster
@@ -213,10 +213,10 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
                                  tobs = tobs,
                                  tout = tout)
 
+
     # Compute the risk
     risk_ani <- purrr::map2_dbl(Y_new_true, Y_smoothed,
                                 ~mean(abs(.x$X - .y)))
-
 
     risk_iso <- purrr::map2_dbl(Y_new_true, Y_smoothed_iso,
                                 ~mean(abs(.x$X - .y)))
@@ -230,7 +230,11 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
            'h1_ani' = h_star[1],
            'h2_ani' = h_star[2],
            'h1_iso' = h_star_iso[1],
-           'h2_iso' = h_star_iso[2])
+           'h2_iso' = h_star_iso[2],
+           'H1_ani' = learn_list$H_ani[1],
+           'H2_ani' = learn_list$H_ani[2],
+           'H1_iso' = learn_list$H_iso[1],
+           'H2_iso' = learn_list$H_iso[2])
     )
 
   }

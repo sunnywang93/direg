@@ -9,7 +9,7 @@ library(here)
 # Parameter settings
 alpha_true <- pi/3 + pi/4
 H_min <- 0.3
-Hmax_set <- c(0.3, 0.4, 0.8)
+Hmax_set <- c(0.3, 0.5, 0.8)
 N <- 100
 M <- 101
 sigma <- 0.05
@@ -38,17 +38,6 @@ result <- foreach(H_max = Hmax_set, .combine = cbind) %:%
           .packages = c("direg"),
           .combine = 'c') %dopar%
     {
-
-    each_filename <- paste0('result_',
-                            as.character(i),
-                            '.rda')
-
-    each_filepath <- file.path(inter_dir,
-                               each_filename)
-
-    if (file.exists(each_filepath)) {
-      next
-    }
 
     set.seed(seeds[i])
 
@@ -93,13 +82,14 @@ result <- foreach(H_max = Hmax_set, .combine = cbind) %:%
 
     # Perform anisotropic detection
     ani_indic <- ani_detect(X_list = sheets_list_sum,
-                            beta_n = 10,
+                            beta_n = ceiling(log(N * M)),
                             g_adj = alpha_hat_adj$g_adj,
                             alpha_adj = alpha_hat_adj$alpha_adj,
                             H_min = alpha_sheet_sum$H_min,
                             H_max = alpha_unique_sum$H_max,
                             delta = delta,
                             sigma = alpha_unique_sum$sigma)
+
 
     ani_indic
 
@@ -111,7 +101,7 @@ saveRDS(result,
         file = paste0(result_folder, "/H_max/result_all.rds")
         )
 
-pct_0.3 <- sum(result_all[, "H_0.3"]) / rout * 100
-pct_0.4 <- sum(result_all[, "H_0.4"]) / rout * 100
-pct_0.8 <- sum(result_all[, "H_0.8"]) / rout * 100
+pct_0.3 <- sum(result[, "H_0.3"]) / rout * 100
+pct_0.5 <- sum(result[, "H_0.5"]) / rout * 100
+pct_0.8 <- sum(result[, "H_0.8"]) / rout * 100
 

@@ -11,11 +11,11 @@ Nset <- c(100, 150)
 Mset <- c(51, 101)
 H1 <- 0.8
 H2 <- 0.5
-rout <- 350
-alpha_set <- c(pi/30, pi/6, pi/5, pi/4, pi/3, pi/2 - pi/30)
-#alpha_set <- pi/5
-delta_c <- 0.25
-sigma_set <- c(0, 0.05, 0.1)
+rout <- 50
+alpha_set <- c(pi/30, pi/5, pi/4, pi/3, pi/2 - pi/30)
+
+
+sigma_set <- c(0.05, 0.1)
 
 
 param_cart <- expand.grid(M = Mset,
@@ -28,31 +28,19 @@ set.seed(123)
 seeds <- sample.int(10000,
                     size = rout)
 
-inter_dir <- here('intermediate')
-result_folder <- here('result')
+result_folder <- here('result_alpha')
 if(!dir.exists(result_folder)) {
   dir.create(result_folder)
 }
 
+# Set number of cores to use
+n_cores <- 50
+# Create cluster nodes
+cl <- makeCluster(spec = n_cores)
+# Register cluster
+doSNOW::registerDoSNOW(cl)
 
-for(k in 1:nrow(param_cart)) {
-
-
-  if(!dir.exists(inter_dir)) {
-    dir.create(inter_dir)
-  }
-  # Set number of cores to use
-  n_cores <- 75
-  # Create cluster nodes
-  cl <- makeCluster(spec = n_cores)
-  # Register cluster
-  doSNOW::registerDoSNOW(cl)
-  # Create progress bar
-  pb <- txtProgressBar(min = 1,
-                       max = rout,
-                       style = 3)
-
-  opts <- list(progress = function(n) setTxtProgressBar(pb, n))
+result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
 
   alpha_true <- param_cart[k, "alpha"]
   M <- param_cart[k, "M"]
@@ -60,23 +48,11 @@ for(k in 1:nrow(param_cart)) {
   delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
   sigma <- param_cart[k, "sigma"]
 
-
-  tic()
   foreach(i = 1:rout,
           .packages = c("direg"),
-          .options.snow = opts) %dopar%
+          .combine = 'c',
+          .multicombine = TRUE) %dopar%
     {
-
-      each_filename <- paste0('result_',
-                              as.character(i),
-                              '.rda')
-
-      each_filepath <- file.path(inter_dir,
-                                 each_filename)
-
-      if (file.exists(each_filepath)) {
-        next
-      }
 
       set.seed(seeds[i])
       # Generate sum of fBms
@@ -90,16 +66,13 @@ for(k in 1:nrow(param_cart)) {
                                  type = "sum",
                                  sigma = sigma)
       )
-      # Check the variance of the simulated process
-      #image(Reduce('+', purrr::map(X_list_sum, ~.x^2)) / length(X_list_sum))
-      delta_grid <- seq(1/sqrt(M), 0.4, length.out = 15)
 
       xout <- seq(0, 1, length.out = M)
       sheets_list_sum <- purrr::map(X_list_sum,
                                     ~list(t = xout,
                                           X = .x))
 
-      delta <- (1 / sqrt(M)) * (1 + delta_c)
+      delta <- (1 / sqrt(M))
 
       # Estimation of angle
       alpha_sheet_sum <- estimate_angle(X_list = sheets_list_sum,
@@ -132,45 +105,22 @@ for(k in 1:nrow(param_cart)) {
         alpha_true <- alpha_true - pi
       }
 
-
-      result <- list(
-        'alpha_hat' = alpha_unique_sum$alpha,
-        'alpha_hat_adj' = alpha_hat_adj$alpha_adj,
-        'ghat' = alpha_sheet_sum$g_hat,
-        'ghat_adj' = alpha_hat_adj$g_adj,
-        'g_true' = g_true,
-        'f_alpha' = alpha_hat_adj$f_alpha
+      list(
+        list(
+          'alpha_hat' = alpha_unique_sum$alpha,
+          'alpha_hat_adj' = alpha_hat_adj$alpha_adj,
+          'ghat' = alpha_sheet_sum$g_hat,
+          'ghat_adj' = alpha_hat_adj$g_adj,
+          'g_true' = g_true,
+          'f_alpha' = alpha_hat_adj$f_alpha
+        )
       )
-
-      save(result,
-           file = each_filepath)
-
     }
 
-  stopCluster(cl)
-  toc()
-
-  fls <- list.files(inter_dir,
-                    pattern = ".rda")
-
-
-  result_list <- lapply(fls,
-                        function(x) get(eval(load(paste0(inter_dir, '/', x
-                        )))))
-
-
-  saveRDS(result_list,
-          file = paste0(result_folder, "/N", N,
-                        "_M", M,
-                        "_alpha", round(alpha_true, 2),
-                        "_sigma", sigma,
-                        ".rds")
-
-  )
-
-  fs::file_delete(inter_dir)
-
 }
+
+save(result_list,
+     file = paste0(here(), "/result_alpha/result_list.rds"))
 
 library(here)
 folder_path <- here("result")

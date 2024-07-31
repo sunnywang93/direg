@@ -88,12 +88,18 @@ estimate_angle <- function(X_list, xout, delta) {
                      tout = tout,
                      delta = delta)
 
-  tan_alpha <- mean(H_list$theta_e2 / H_list$theta_e1,
-                    na.rm = TRUE)**(1 / (2 * H_list$H))
+  sigma_hat <- estimate_sigma(X_list = X_list)
 
-  list(g_hat = tan_alpha,
-      alpha_acot = pracma::acot(tan_alpha),
-      alpha_atan = atan(tan_alpha),
+  theta_ratio <- (H_list$theta_e2 - 2*sigma_hat^2) /
+    (H_list$theta_e1 - 2*sigma_hat^2)
+
+  theta_ratio[theta_ratio < 0] <- 1
+
+  g_alpha <- mean(theta_ratio^(1 / (2 * H_list$H)), na.rm = TRUE)
+
+  list(g_hat = g_alpha,
+      alpha_acot = pracma::acot(g_alpha),
+      alpha_atan = atan(g_alpha),
       H_min = H_list$H)
 
 }
