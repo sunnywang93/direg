@@ -28,6 +28,7 @@ on the dimensional grid \code{tout}.
 delta.
 \item \strong{theta_e1} Matrix, containing the thetas on the \code{e1} basis computed with
 delta.
+-\strong{sigma_hat} Numeric, the estimated noise.
 }
 }
 \description{

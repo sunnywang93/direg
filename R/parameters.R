@@ -9,11 +9,12 @@
 #' resulting from `expand.grid`.
 #' @param delta Numeric, determining the spacings.
 #' @param e Vector, containing the coordinates of the directional vector.
+#' @param sigma Numeric, the standard deviation of the noise.
 #' @returns Matrix, containing the mean squared deviations on the evaluation
 #' points `tout`.
 #' @export
 
-theta_sheets <- function(X_list, tout, delta, e) {
+theta_sheets <- function(X_list, tout, delta, e, sigma) {
 
   tout_minus <- cbind(pmin(pmax(tout[, 1] - (delta/2 * e[1]), 0), 1),
                       pmin(pmax(tout[, 2] - (delta/2 * e[2]), 0), 1)
@@ -43,9 +44,11 @@ theta_sheets <- function(X_list, tout, delta, e) {
                          matrix(nrow = sqrt(nrow(tout)),
                                 ncol = sqrt(nrow(tout))))
 
-  purrr::map2(X_minus, X_plus,
-              ~(.x - .y)**2) |>
+  theta_check <- purrr::map2(X_minus, X_plus,
+                             ~(.x - .y)**2) |>
     (\(x) Reduce('+', x) / length(x))()
+
+  theta_check - 2*sigma^2
 
 }
 
@@ -65,6 +68,7 @@ theta_sheets <- function(X_list, tout, delta, e) {
 #' delta.
 #' - **theta_e1** Matrix, containing the thetas on the `e1` basis computed with
 #' delta.
+#' -**sigma_hat** Numeric, the estimated noise.
 #' @export
 
 H_sheets <- function(X_list, tout, delta) {
@@ -72,17 +76,26 @@ H_sheets <- function(X_list, tout, delta) {
   e <- list(e1 = c(1, 0),
             e2 = c(0, 1))
 
+  sigma_hat <- estimate_sigma(X_list = X_list)
+
   theta_2delta <- purrr::map(e,
                              ~theta_sheets(X_list = X_list,
                                            tout = tout,
                                            delta = delta * 2,
-                                           .x))
+                                           .x,
+                                           sigma = sigma_hat)) |>
+    purrr::map(~mean(.x, na.rm = TRUE)) |>
+    purrr::map(~ifelse(.x <= 0, 1, .x))
 
   theta_delta <- purrr::map(e,
                             ~theta_sheets(X_list = X_list,
                                           tout = tout,
                                           delta = delta,
-                                          .x))
+                                          .x,
+                                          sigma = sigma_hat)) |>
+    purrr::map(~mean(.x, na.rm = TRUE)) |>
+    purrr::map(~ifelse(.x <= 0, 1, .x))
+
 
   H_hat <- purrr::map2(theta_2delta, theta_delta,
                        ~(log(.x) - log(.y)) / (2 * log(2))
@@ -90,9 +103,10 @@ H_sheets <- function(X_list, tout, delta) {
     (\(x) Reduce(pmin, x))()
 
   list(
-    H = mean(pmin(pmax(H_hat, 0.1), 1)),
+    H = pmin(pmax(H_hat, 0.1), 1),
     theta_e2 = theta_delta$e2,
-    theta_e1 = theta_delta$e1
+    theta_e1 = theta_delta$e1,
+    sigma_hat = sigma_hat
   )
 
 }
@@ -124,22 +138,25 @@ H_sheets_dir <- function(X_list, tout, delta, base_list, sigma) {
                              ~theta_sheets(X_list = X_list,
                                            tout = tout,
                                            delta = delta * 2,
-                                           .x))
+                                           .x,
+                                           sigma = sigma)) |>
+    purrr::map(~mean(.x, na.rm = TRUE)) |>
+    purrr::map(~ifelse(.x <= 0, 1, .x))
 
   theta_delta <- purrr::map(base_list,
                             ~theta_sheets(X_list = X_list,
                                           tout = tout,
                                           delta = delta,
-                                          .x))
+                                          .x,
+                                          sigma = sigma))  |>
+    purrr::map(~mean(.x, na.rm = TRUE)) |>
+    purrr::map(~ifelse(.x <= 0, 1, .x))
 
   H_hat <- purrr::map2(theta_2delta, theta_delta,
-                       ~matrix(mapply(H_replace, .x, .y, sigma),
-                               nrow = nrow(.x),
-                               ncol = ncol(.x)
-                               )
-                       )
+                       ~(log(.x) - log(.y)) / (2 * log(2))
+  )
 
-  purrr::map_dbl(H_hat, ~mean(pmin(pmax(.x, 0.1), 1), na.rm = TRUE))
+  purrr::map_dbl(H_hat, ~pmin(pmax(.x, 0.1), 1))
 
 }
 

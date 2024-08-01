@@ -4,7 +4,7 @@
 \alias{theta_sheets}
 \title{Computes the mean squared deviations of a surface on a grid on points}
 \usage{
-theta_sheets(X_list, tout, delta, e)
+theta_sheets(X_list, tout, delta, e, sigma)
 }
 \arguments{
 \item{X_list}{List, containing the following elements:
@@ -18,6 +18,8 @@ resulting from \code{expand.grid}.}
 \item{delta}{Numeric, determining the spacings.}
 
 \item{e}{Vector, containing the coordinates of the directional vector.}
+
+\item{sigma}{Numeric, the standard deviation of the noise.}
 }
 \value{
 Matrix, containing the mean squared deviations on the evaluation

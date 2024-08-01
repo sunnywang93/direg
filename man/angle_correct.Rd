@@ -4,9 +4,18 @@
 \alias{angle_correct}
 \title{Compute the correction for estimating equation of angle}
 \usage{
-angle_correct(g_hat, alpha_hat, delta, Hmax, Hmin)
+angle_correct(X_list, xout, g_hat, alpha_hat, delta, Hmax, Hmin, sigma)
 }
 \arguments{
+\item{X_list}{List, containing the following elements:
+\itemize{
+\item \strong{$t} Vector of sampling points,
+\item \strong{$X} Matrix of observed points, measured on the bi-dimensional grid containing
+cartesian product of \verb{$t} with itself.
+}}
+
+\item{xout}{Vector, containing the evaluation points at which the angle should be computed.}
+
 \item{g_hat}{Numeric, the preliminary estimate of the tangent or cotangent of the angle.}
 
 \item{alpha_hat}{Numeric, the preliminary estimate of the identified angle.}
@@ -16,6 +25,9 @@ angle_correct(g_hat, alpha_hat, delta, Hmax, Hmin)
 \item{Hmax}{Numeric, the maximum regularity.}
 
 \item{Hmin}{Numeric, the minimum regularity.}
+
+\item{sigma}{Numeric, the standard deviation of the noise,
+for example outputted by \code{estimate_angle}.}
 }
 \value{
 List, containing the corrected angle, corrected function of angle and

@@ -5,7 +5,7 @@
 \title{Find the unique angle between the two basis vectors that provides the
 maximising regularity}
 \usage{
-identify_angle(angles, X_list, dout, xout)
+identify_angle(angles, X_list, dout, xout, sigma)
 }
 \arguments{
 \item{angles}{Vector, containing the arccot and arctan of the angle, for
@@ -24,6 +24,9 @@ the regularity.}
 \item{xout}{Vector, containing the evaluation points along one 1 dimension
 to compute the regularity. The cartesian product is taken to produce the
 2D grid.}
+
+\item{sigma}{Numeric, the standard deviation of the noise,
+for example outputted by \code{estimate_angle}.}
 }
 \value{
 List, containing the identified angle and the associated estimated

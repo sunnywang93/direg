@@ -11,11 +11,11 @@ Nset <- c(100, 150)
 Mset <- c(51, 101)
 H1 <- 0.8
 H2 <- 0.5
-rout <- 50
+rout <- 500
 alpha_set <- c(pi/30, pi/5, pi/4, pi/3, pi/2 - pi/30)
 
 
-sigma_set <- c(0.05, 0.1)
+sigma_set <- c(0.1, 0.5, 1, 2)
 
 
 param_cart <- expand.grid(M = Mset,
@@ -40,6 +40,7 @@ cl <- makeCluster(spec = n_cores)
 # Register cluster
 doSNOW::registerDoSNOW(cl)
 
+tic()
 result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
 
   alpha_true <- param_cart[k, "alpha"]
@@ -74,6 +75,7 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
 
       delta <- (1 / sqrt(M))
 
+
       # Estimation of angle
       alpha_sheet_sum <- estimate_angle(X_list = sheets_list_sum,
                                         xout = xout,
@@ -83,14 +85,18 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
       alpha_unique_sum <- identify_angle(angles = alpha_sheet_sum,
                                          X_list = sheets_list_sum,
                                          dout = delta_grid,
-                                         xout = xout)
+                                         xout = xout,
+                                         sigma = alpha_sheet_sum$sigma_hat)
 
       # Perform correction for remainder term of g
-      alpha_hat_adj <- angle_correct(g_hat = alpha_sheet_sum$g_hat,
+      alpha_hat_adj <- angle_correct(X_list = sheets_list_sum,
+                                     xout = xout,
+                                     g_hat = alpha_sheet_sum$g_hat,
                                      alpha_hat = alpha_unique_sum$alpha,
                                      delta = delta,
                                      Hmax = alpha_unique_sum$H_max,
-                                     Hmin = alpha_sheet_sum$H_min)
+                                     Hmin = alpha_sheet_sum$H_min,
+                                     sigma = alpha_sheet_sum$sigma_hat)
 
       # Compute true g for comparison purposes
       g_true <- g_compute(alpha = alpha_true,
@@ -107,6 +113,7 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
 
       list(
         list(
+          'alpha' = alpha_true,
           'alpha_hat' = alpha_unique_sum$alpha,
           'alpha_hat_adj' = alpha_hat_adj$alpha_adj,
           'ghat' = alpha_sheet_sum$g_hat,
@@ -119,291 +126,92 @@ result_list <- foreach(k = seq_len(nrow(param_cart))) %do% {
 
 }
 
+toc()
+
 save(result_list,
      file = paste0(here(), "/result_alpha/result_list.rds"))
 
-library(here)
-folder_path <- here("result")
-file_names <- list.files(path = folder_path, pattern = "\\.rds$",
-                         full.names = TRUE)
-
-dat_list <- lapply(file_names, function(x) readRDS(x)) |>
-  lapply(function(dat) t(sapply(dat, function(x) x)))
-
-names(dat_list) <- basename(file_names)
-
+# analysis of results =========================================================
 library(dplyr)
 library(tidyr)
-result_df <- bind_rows(
-  lapply(names(dat_list), function(name) {
-    mat <- dat_list[[name]]
-    name_parts <- unlist(strsplit(name, "_"))
-    data.frame(
-      N = as.integer(sub("N(\\d+).*", "\\1", name_parts[1])),
-      M = as.integer(sub("M(\\d+).*", "\\1", name_parts[2])),
-      alpha = as.numeric(sub("alpha([0-9.]+).*", "\\1", name_parts[3])),
-      sigma = as.numeric(sub("sigma([0-9.]+)\\.rds", "\\1", name_parts[4])),
-      mat
-    )
-  })
+library(stringr)
+library(pracma)
+
+list_names <- purrr::map_chr(seq_len(nrow(param_cart)),
+                             ~paste0("M",  param_cart[.x, "M"],
+                                     "_N", param_cart[.x, "N"],
+                                    "_alpha", round(param_cart[.x, "alpha"], 2),
+                                     "_sigma", param_cart[.x, "sigma"])
 )
 
-for(i in 5:length(result_df)) {
 
-  result_df[[i]] <- unlist(result_df[[i]])
+names(result_list) <- list_names
 
-}
+result_df <- bind_rows(
+  lapply(seq_along(result_list), function(result_id) {
+    df_result <- as.data.frame(do.call(rbind, result_list[[result_id]]))
+    as.data.frame(
+      cbind(M = as.numeric(str_extract(list_names[result_id], "(?<=M)[0-9.]+")),
+            N = as.numeric(str_extract(list_names[result_id], "(?<=N)[0-9.]+")),
+            alpha = as.numeric(str_extract(list_names[result_id],
+                                           "(?<=alpha)[0-9.]+")),
+            sigma = as.numeric(str_extract(list_names[result_id],
+                                           "(?<=sigma)[0-9.]+")),
+            alpha_hat = unname(unlist(df_result$alpha_hat)),
+            alpha_hat_adj = unname(unlist(df_result$alpha_hat_adj)),
+            ghat = unlist(df_result$ghat),
+            ghat_adj = unlist(df_result$ghat_adj),
+            g_true = unlist(df_result$g_true),
+            f_alpha = unname(unlist(df_result$f_alpha))
+            )
+    )
+    }
+    )
+)
 
-# need to compute against cotangent of alpha, not g_true!
-result_df <- result_df |>
-  mutate(risk_alpha_adj = abs(alpha - alpha_hat_adj),
-         risk_alpha_hat = abs(alpha - alpha_hat),
+
+result_long <- result_df |>
+  mutate(risk_alpha = abs(alpha - alpha_hat),
+         risk_alpha_adj = abs(alpha - alpha_hat_adj),
          risk_ghat = abs(ghat - cot(alpha)),
          risk_ghat_adj = abs(ghat_adj - cot(alpha))) |>
-  mutate(risk_rel = risk_alpha_hat / risk_alpha_adj)
-
-# result_long <- result_long |>
-#   mutate(risk = risk - pi/2)
-#
-#
-# result_long <- result_long |>
-#   mutate(risk = abs(risk))
-
-plot_set <- expand.grid(N = Nset, M = Mset)
-
-alpha_adj_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(2.09, 2.36, 2.62),
-          var = risk_alpha_adj,
-          yaxis = "alpha")
-})
+  mutate(risk_rel_adj = risk_alpha_adj / risk_alpha)
 
 
-alpha_adj <- wrap_plots(alpha_adj_list, nrow = 2, ncol = 2, guides = "collect")
+result_long |>
+  filter(M == 51, N == 100) |>
+  select(alpha, sigma, risk_alpha) |>
+  ggplot(aes(x = as.factor(sigma)), y = risk_alpha, fill = as.factor(alpha)) +
+  geom_boxplot()
 
-for(i in 1:length(alpha_adj_list)) {
-
-  tikz(file = paste0("/home/swang/directional_regularity/plots/alpha_adj/",
-                     alpha_adj_list[[i]]$labels$title, ".tex"),
-       width = 5,
-       height = 5,
-       standAlone = TRUE)
-
-  plot(alpha_adj_list[[i]])
-
-  dev.off()
-
-}
+lim_plot <- filter(result_df,
+                   N == 100,
+                   M == 51) |>
+  pull(risk_rel) |>
+  quantile(c(0, .95))
 
 
+plot_df(result_df = result_long,
+        N = 100,
+        M = 51,
+        alpha_rem = 0.1,
+        var = risk_alpha,
+        yaxis = "alpha")
 
-alpha_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(2.09, 2.36, 2.62),
-          var = risk_alpha_hat,
-          yaxis = "alpha")
-})
+plot_df(result_df = result_long,
+        N = 100,
+        M = 51,
+        alpha_rem = 0.1,
+        var = risk_alpha_adj,
+        yaxis = "alpha")
 
-alpha_hat <- wrap_plots(alpha_list, nrow = 2, ncol = 2, guides = "collect")
-
-
-for(i in 1:length(alpha_list)) {
-
-  tikz(file = paste0("/home/swang/directional_regularity/plots/alpha/",
-                     alpha_list[[i]]$labels$title, ".tex"),
-       width = 5,
-       height = 5,
-       standAlone = TRUE)
-
-  plot(alpha_list[[i]])
-
-  dev.off()
-
-}
-
-
-
-
-
-alpha_rel_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-
-  lim_plot <- filter(result_df,
-                     N == plot_set[row, "N"],
-                     M == plot_set[row, "M"]) |>
-    pull(risk_rel) |>
-    quantile(c(0, .95))
-
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(2.09, 2.36, 2.62),
-          var = risk_rel,
-          yaxis = "alpha") +
-    geom_boxplot(outlier.shape = NA) +
-    scale_y_continuous(limits = lim_plot) +
-    geom_hline(yintercept = 1, col = "red")
-})
-
-for(i in 1:length(alpha_rel_list)) {
-
-  tikz(file = paste0("/home/swang/directional_regularity/plots/alpha_rel/",
-                     alpha_rel_list[[i]]$labels$title, ".tex"),
-       width = 5,
-       height = 5,
-       standAlone = TRUE)
-
-  plot(alpha_rel_list[[i]])
-
-  dev.off()
-
-}
-
-
-
-alpha_rel <- wrap_plots(alpha_rel_list, nrow = 2, ncol = 2, guides = "collect")
-
-
-f_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(2.09, 2.36, 2.62),
-          var = f_alpha,
-          yaxis = "f")
-})
-
-f_rel <- wrap_plots(f_list, nrow = 2, ncol = 2, guides = "collect")
-
-
-ghat_adj_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(0.1, 2.09, 2.36, 2.62),
-          var = risk_ghat_adj,
-          yaxis = "g_adj")
-})
-
-ghat_adj <- wrap_plots(ghat_adj_list, nrow = 2, ncol = 2, guides = "collect")
-
-
-for(i in 1:length(ghat_adj_list)) {
-
-  tikz(file = paste0("/home/swang/directional_regularity/plots/g_adj/",
-                     ghat_adj_list[[i]]$labels$title, ".tex"),
-       width = 5,
-       height = 5,
-       standAlone = TRUE)
-
-  plot(ghat_adj_list[[i]])
-
-  dev.off()
-
-}
-
-
-ghat_list <- lapply(seq_len(nrow(plot_set)), function(row) {
-  plot_df(result_df = result_df,
-          N = plot_set[row, "N"],
-          M = plot_set[row, "M"],
-          alpha_rem = c(0.1, 2.09, 2.36, 2.62),
-          var = risk_ghat,
-          yaxis = "g")
-})
-
-ghat <- wrap_plots(ghat_list, nrow = 2, ncol = 2, guides = "collect")
-
-
-for(i in 1:length(ghat_list)) {
-
-  tikz(file = paste0("/home/swang/directional_regularity/plots/g/",
-                     ghat_list[[i]]$labels$title, ".tex"),
-       width = 5,
-       height = 5,
-       standAlone = TRUE)
-
-  plot(ghat_list[[i]])
-
-  dev.off()
-
-}
-
-# lim_N100_M51_prod <- filter(result_long,
-#                             dgp == "prod",
-#                             N == 100,
-#                             M == 51) |>
-#   pull(risk) |>
-#   quantile(c(.1, .9))
-#
-# boxplot_N100_M51_prod <- result_long |>
-#   ggplot(aes(x = as.factor(sigma), y = risk,
-#              fill = as.factor(alpha))) +
-#   geom_boxplot(outlier.shape = NA) +
-#   scale_y_continuous(limits = quantile(lim_N100_M51_prod, c(0.1, 0.9))) +
-#   ggtitle("Boxplots $f_1 = B_1 * B2 (N = 100, M = 51)$") +
-#   xlab("$\\sigma$") +
-#   ylab("$\\mathcal{R}_{\\alpha}$") +
-#   labs(fill = "$\\alpha$") +
-#   theme_minimal() +
-#   scale_fill_grey(start = 0.3, end = 1)
-
-
-# library(tikzDevice)
-# tikz(file = "N100_M26_sum.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N100_M26_sum)
-# dev.off()
-#
-#
-# tikz(file = "N100_M51_sum.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N100_M51_sum)
-# dev.off()
-#
-# tikz(file = "N200_M26_sum.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N200_M26_sum)
-# dev.off()
-#
-# tikz(file = "N200_M51_sum.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N200_M51_sum)
-# dev.off()
-#
-#
-# tikz(file = "N100_M51_prod.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N100_M51_prod)
-# dev.off()
-#
-# tikz(file = "N200_M51_prod.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# plot(boxplot_N200_M51_prod)
-# dev.off()
-#
-#
-# tikz(file = "var_pi4.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-#
-# image(Reduce('+', purrr::map(X_list_prod, ~.x^2)) /
-#         length(X_list_prod),
-#       main = "Variance of Anisotropic process",
-#       xlab = "t1",
-#       ylab = "t2")
-# dev.off()
-#
-#
-# tikz(file = "iso.tex", width = 5, height = 5,
-#      standAlone = TRUE)
-# image(Reduce('+', purrr::map(X_iso, ~.x^2)) / length(X_iso),
-#       main = "Variance of isotropic process",
-#       xlab = "t1", ylab = "t2")
-# dev.off()
-#
+ plot_df(result_df = result_long,
+        N = 150,
+        M = 101,
+        alpha_rem = 0.63,
+        var = risk_rel_adj,
+        yaxis = "alpha") +
+   geom_hline(yintercept = 1, col = "red")
 
 
 plot_df <- function(result_df, N, M, var, yaxis, alpha_rem = NULL) {
@@ -411,11 +219,19 @@ plot_df <- function(result_df, N, M, var, yaxis, alpha_rem = NULL) {
   rem_df <- result_df |> filter(alpha %in% alpha_rem)
   var_parse <- rlang::enquo(var)
 
-  setdiff(x = result_df, y = rem_df) |>
-    filter(N == !!N, M == !!M) |>
+  df_plot <-  setdiff(x = result_df, y = rem_df) |>
+    filter(N == !!N, M == !!M)
+
+  lim_plot <- df_plot |>
+    pull(!!var_parse) |>
+    quantile(c(0, .99))
+
+
+  df_plot |>
     ggplot(aes(x = as.factor(sigma), y = !!var_parse,
                fill = as.factor(alpha))) +
-    geom_boxplot() +
+    geom_boxplot(outlier.shape = NA) +
+    scale_y_continuous(limits = lim_plot) +
     ggtitle(paste0("N = ", N, ", M = ", M, "")) +
     xlab("$\\sigma$") +
     ylab(paste0("$\\mathcal{R}_{", yaxis, "}$")) +
@@ -425,7 +241,6 @@ plot_df <- function(result_df, N, M, var, yaxis, alpha_rem = NULL) {
     theme(plot.title = element_text(hjust = 0.5))
 
 }
-
 
 
 
