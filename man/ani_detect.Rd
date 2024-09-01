@@ -11,9 +11,9 @@ ani_detect(
   alpha_adj,
   H_min,
   H_max,
-  delta,
+  delta_grid,
   sigma,
-  H_pow = 1.1
+  H_pow = 1/3
 )
 }
 \arguments{
@@ -34,12 +34,18 @@ cartesian product of \verb{$t} with itself.
 
 \item{H_max}{Numeric, the estimated maximum regularity.}
 
-\item{delta}{Numeric, the spacings used for estimation.}
+\item{delta_grid}{Vector, the grid of spacings used for estimation.}
 
 \item{sigma}{Numeric, the estimated noise.}
+
+\item{H_pow}{Numeric, the power of the rate term.}
 }
 \value{
-Numeric, where \code{0} indicates isotropy, and \code{1} indicates anisotropy.
+List, containing the following elements:
+\itemize{
+\item \strong{$indic}: Numeric, with 1 indicator anisotropy and 0 otherwise.
+\item \strong{$tau} : Numeric, the threshold value used to test for anisotropy.
+}
 }
 \description{
 Performs anisotropic detection by thresholding
