@@ -19,3 +19,4 @@ Please note that `R` version >=4.1.0 is required.
 
 The methodological and theoretical aspects of the paper can be found at:
 
+https://arxiv.org/abs/2409.00817
