@@ -32,7 +32,10 @@ bw_smooth <- function(H1, H2, M0) {
 #' cartesian product of `$t` with itself.
 #' @param bw_vec Vector of bandwidths, corresponding to the diagonal elements of
 #' the bandwidth matrix.
-#' @param xout Matrix of evaluation points in two dimensions.
+#' @param tobs Data frame / Matrix of observed points with 2 columns, with each column containing the
+#' observed points in their respective coordinates.
+#' @param tout Data frame / Matrix of evaluation points with 2 columns, with each column containing the
+#' observed points in their respective coordinates.
 #' @returns List, corresponding to the smooth curves.
 #' @export
 

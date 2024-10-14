@@ -17,7 +17,11 @@ cartesian product of \verb{$t} with itself.
 \item{bw_vec}{Vector of bandwidths, corresponding to the diagonal elements of
 the bandwidth matrix.}
 
-\item{xout}{Matrix of evaluation points in two dimensions.}
+\item{tobs}{Data frame / Matrix of observed points with 2 columns, with each column containing the
+observed points in their respective coordinates.}
+
+\item{tout}{Data frame / Matrix of evaluation points with 2 columns, with each column containing the
+observed points in their respective coordinates.}
 }
 \value{
 List, corresponding to the smooth curves.
