@@ -1,8 +1,12 @@
 #' Find the unique angle between the two basis vectors that provides the
 #' maximising regularity
 #'
-#' @param angles Vector, containing the arccot and arctan of the angle, for
-#' example outputted by the function `estimate_angle`.
+#' @param angles List, for example the output obtained by `estimate_angle`, containing:
+#' - **$g_hat** Numeric, estimated function of angle.
+#' - **$alpha_acot** Numeric, estimated angle by applying arccot.
+#' - **$alpha_atan** Numeric, estimated angle by applying arctan.
+#' - **$H_min** Numeric, estimated minimum regularity.
+#' - **$sigma_hat** Numeric, estimated noise standard deviation.
 #' @param X_list List, containing the following elements:
 #' - **$t** Vector of sampling points,
 #' - **$X** Matrix of observed points, measured on the bi-dimensional grid containing
@@ -76,7 +80,12 @@ identify_angle <- function(angles, X_list, dout, xout, sigma) {
 #' @param xout Vector, containing the evaluation points at which
 #' the angle should be computed.
 #' @param delta Numeric, determining the spacings.
-#' @returns Vector, containing the angles identified by arccot and arctan.
+#' @returns List, containing:
+#' - **$g_hat** Estimated function of angle.
+#' - **$alpha_acot** Estimated angle by applying arccot.
+#' - **$alpha_atan** Estimated angle by applying arctan.
+#' - **$H_min** Estimated minimum regularity.
+#' - **$sigma_hat** Estimated noise standard deviation.
 #' @export
 
 estimate_angle <- function(X_list, xout, delta) {

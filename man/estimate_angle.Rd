@@ -20,7 +20,14 @@ the angle should be computed.}
 \item{delta}{Numeric, determining the spacings.}
 }
 \value{
-Vector, containing the angles identified by arccot and arctan.
+List, containing:
+\itemize{
+\item \strong{$g_hat} Estimated function of angle.
+\item \strong{$alpha_acot} Estimated angle by applying arccot.
+\item \strong{$alpha_atan} Estimated angle by applying arctan.
+\item \strong{$H_min} Estimated minimum regularity.
+\item \strong{$sigma_hat} Estimated noise standard deviation.
+}
 }
 \description{
 Estimates the angle between two basis vectors up to a reflection

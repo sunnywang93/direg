@@ -8,8 +8,14 @@ maximising regularity}
 identify_angle(angles, X_list, dout, xout, sigma)
 }
 \arguments{
-\item{angles}{Vector, containing the arccot and arctan of the angle, for
-example outputted by the function \code{estimate_angle}.}
+\item{angles}{List, for example the output obtained by \code{estimate_angle}, containing:
+\itemize{
+\item \strong{$g_hat} Numeric, estimated function of angle.
+\item \strong{$alpha_acot} Numeric, estimated angle by applying arccot.
+\item \strong{$alpha_atan} Numeric, estimated angle by applying arctan.
+\item \strong{$H_min} Numeric, estimated minimum regularity.
+\item \strong{$sigma_hat} Numeric, estimated noise standard deviation.
+}}
 
 \item{X_list}{List, containing the following elements:
 \itemize{
